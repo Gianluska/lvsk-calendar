@@ -119,12 +119,22 @@ draw_header() {
     for ((i=0; i<width; i++)); do echo -ne "${BOX[H]}"; done
     echo -e "${BOX[TR]}"
 
-    # Title line with centered text
-    local padding=$(( (width - ${#title}) / 2 ))
+    # Navigation line with Back/Next buttons
+    local nav_left=" ${COLORS[ACCENT]}←${COLORS[RESET]}${COLORS[PRIMARY]} Back "
+    local nav_right=" Next ${COLORS[ACCENT]}→${COLORS[RESET]}${COLORS[PRIMARY]} "
+    local nav_left_len=8  # Visual length (← Back + spaces)
+    local nav_right_len=8  # Visual length (Next → + spaces)
+
+    local title_len=${#title}
+    local available_space=$((width - nav_left_len - nav_right_len))
+    local title_padding=$(( (available_space - title_len) / 2 ))
+
     echo -ne "    ${BOX[V]}"
-    for ((i=0; i<padding; i++)); do echo -n " "; done
+    echo -ne "$nav_left"
+    for ((i=0; i<title_padding; i++)); do echo -n " "; done
     echo -ne "${COLORS[BOLD]}${COLORS[HIGHLIGHT]}$title${COLORS[RESET]}${COLORS[PRIMARY]}"
-    for ((i=0; i<width-padding-${#title}; i++)); do echo -n " "; done
+    for ((i=0; i<available_space-title_padding-title_len; i++)); do echo -n " "; done
+    echo -ne "$nav_right"
     echo -e "${BOX[V]}"
 
     # Separator with decorative elements
@@ -276,7 +286,7 @@ draw_footer() {
 
     # Help text
     echo ""
-    echo -e "    ${COLORS[DIM]}${COLORS[TEXT_DAY]}${BOX[dot]} Use arrow keys to navigate ${BOX[dot]} Press 'q' to quit ${BOX[dot]} 't' for today${COLORS[RESET]}"
+    echo -e "    ${COLORS[DIM]}${COLORS[TEXT_DAY]}${BOX[dot]} Arrows: navigate ${BOX[dot]} [/]: change month ${BOX[dot]} t: today ${BOX[dot]} q: quit${COLORS[RESET]}"
     echo ""
 }
 
@@ -289,6 +299,36 @@ render() {
     draw_day_headers
     draw_calendar
     draw_footer
+}
+
+# Navigate to previous month
+prev_month() {
+    CURRENT_MONTH=$((CURRENT_MONTH - 1))
+    if [ $CURRENT_MONTH -lt 1 ]; then
+        CURRENT_MONTH=12
+        CURRENT_YEAR=$((CURRENT_YEAR - 1))
+    fi
+
+    # Adjust selected day if it exceeds the new month's days
+    local max_days=$(days_in_month $CURRENT_MONTH $CURRENT_YEAR)
+    if [ $SELECTED_DAY -gt $max_days ]; then
+        SELECTED_DAY=$max_days
+    fi
+}
+
+# Navigate to next month
+next_month() {
+    CURRENT_MONTH=$((CURRENT_MONTH + 1))
+    if [ $CURRENT_MONTH -gt 12 ]; then
+        CURRENT_MONTH=1
+        CURRENT_YEAR=$((CURRENT_YEAR + 1))
+    fi
+
+    # Adjust selected day if it exceeds the new month's days
+    local max_days=$(days_in_month $CURRENT_MONTH $CURRENT_YEAR)
+    if [ $SELECTED_DAY -gt $max_days ]; then
+        SELECTED_DAY=$max_days
+    fi
 }
 
 # Handle keyboard input
@@ -326,6 +366,16 @@ handle_input() {
                 CURRENT_YEAR=$(date +%Y)
                 SELECTED_DAY=$(date +%d)
                 ;;
+            '[')
+                # Previous month
+                prev_month
+                return
+                ;;
+            ']')
+                # Next month
+                next_month
+                return
+                ;;
             'h')
                 SELECTED_DAY=$(( SELECTED_DAY - 1 ))
                 ;;
@@ -341,13 +391,18 @@ handle_input() {
         esac
     fi
 
-    # Constrain selected day to valid range
+    # Handle month overflow when navigating days
     local max_days=$(days_in_month $CURRENT_MONTH $CURRENT_YEAR)
+
     if [ $SELECTED_DAY -lt 1 ]; then
+        # Go to previous month
+        prev_month
+        local prev_max=$(days_in_month $CURRENT_MONTH $CURRENT_YEAR)
+        SELECTED_DAY=$prev_max
+    elif [ $SELECTED_DAY -gt $max_days ]; then
+        # Go to next month
+        next_month
         SELECTED_DAY=1
-    fi
-    if [ $SELECTED_DAY -gt $max_days ]; then
-        SELECTED_DAY=$max_days
     fi
 }
 
