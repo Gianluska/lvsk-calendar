@@ -5,15 +5,15 @@ post_install() {
 
     ╭──────────────────────────────────────────────────────────╮
     │                                                          │
-    │                  wisp calendar v0.2.4                    │
+    │                   lvsk calendar v0.2.6                   │
     │                                                          │
-    │          minimalist text-based calendar with             │
-    │              an elegant esthetic for Arch                │
+    │           minimalist text-based calendar with            │
+    │               an elegant esthetic for Arch               │
     │                                                          │
     ╰──────────────────────────────────────────────────────────╯
 
     Usage
-      wisp-calendar
+      lvsk-calendar
 
     Navigation
       hjkl       • day navigation
@@ -37,7 +37,7 @@ post_upgrade() {
 
     ╭──────────────────────────────────────────────────────────╮
     │                                                          │
-    │              wisp calendar updated • v0.2.4              │
+    │              lvsk calendar updated • v0.2.6              │
     │                                                          │
     ╰──────────────────────────────────────────────────────────╯
 
@@ -57,9 +57,9 @@ post_remove() {
 
     ╭──────────────────────────────────────────────────────────╮
     │                                                          │
-    │            wisp calendar has been removed                │
+    │              lvsk calendar has been removed              │
     │                                                          │
-    │               thanks for using wisp                      │
+    │                  thanks for using lvsk                   │
     │                                                          │
     ╰──────────────────────────────────────────────────────────╯
 

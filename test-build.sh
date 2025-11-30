@@ -17,14 +17,14 @@ if [ ! -f "PKGBUILD.local" ]; then
     exit 1
 fi
 
-# Check if wisp-calendar executable exists
-if [ ! -f "wisp-calendar" ]; then
-    echo -e "${RED}✗ wisp-calendar executable not found!${NC}"
+# Check if lvsk-calendar executable exists
+if [ ! -f "lvsk-calendar" ]; then
+    echo -e "${RED}✗ lvsk-calendar executable not found!${NC}"
     exit 1
 fi
 
 echo -e "${GREEN}✓ PKGBUILD.local found${NC}"
-echo -e "${GREEN}✓ wisp-calendar executable found${NC}\n"
+echo -e "${GREEN}✓ lvsk-calendar executable found${NC}\n"
 
 # Show package information
 echo -e "${YELLOW}Package information:${NC}"
