@@ -59,17 +59,14 @@ show_splash() {
     local term_width=$(tput cols)
 
     local -a logo=(
-        ' _           _    '
-        '| |         | |   '
-        '| |_   _____| | __'
-        '| \ \ / / __| |/ /'
-        '| |\ V /\__ \   < '
-        '|_| \_/ |___/_|\_\'
-        '                  '
+        '  |               |    '
+        '  | \ \   /  __|  |  / '
+        '  |  \ \ / \__ \    <  '
+        ' _|   \_/  ____/ _|\_\ '
     )
 
-    local logo_height=7
-    local top_padding=$(( (term_height - logo_height) / 1 ))
+    local logo_height=4
+    local top_padding=$(( (term_height - logo_height) / 2 ))
 
     for ((i=0; i<top_padding; i++)); do
         echo ""
@@ -78,7 +75,7 @@ show_splash() {
     for line in "${logo[@]}"; do
         local line_len=${#line}
         local left_padding=$(( (term_width - line_len) / 2 ))
-        printf "%*s   " "$left_padding" ""
+        printf "%*s" "$left_padding" ""
         printf "${color}${COLORS[DIM]}%s${COLORS[RESET]}\n" "$line"
     done
 

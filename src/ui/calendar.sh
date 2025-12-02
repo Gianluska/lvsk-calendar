@@ -10,13 +10,15 @@ draw_calendar() {
     local day_num=1
     local term_width=$(tput cols)
     local grid_width=$CALENDAR_GRID_WIDTH
-    local left_padding=$(( (term_width - grid_width) / 2 ))
+    local left_pos=$(( (term_width - grid_width) / 2 ))
+
+    local line_num=10  # Starting line for calendar grid
 
     # Draw up to 6 weeks
     for ((week=0; week<6; week++)); do
         [ $day_num -gt $days ] && break
 
-        printf "%*s" "$left_padding" ""
+        tput cup $line_num $left_pos
 
         # Calculate week number for the first day of this week
         local week_day=$day_num
@@ -55,13 +57,7 @@ draw_calendar() {
             [ $dow -lt 7 ] && printf "  "
         done
 
-        echo ""
-
-        # Subtle week separator
-        if [ $week -lt 5 ] && [ $day_num -le $days ]; then
-            printf "%*s" "$left_padding" ""
-            printf "${COLORS[SUBTLE]}${COLORS[DIM]}%*s${COLORS[RESET]}\n" "$grid_width" ""
-        fi
+        line_num=$((line_num + 2))  # Move to next week line (skip blank line)
     done
 }
 

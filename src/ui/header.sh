@@ -7,42 +7,37 @@ draw_header() {
     local month_name=$(get_month_name $CURRENT_MONTH $CURRENT_YEAR)
     local title="$month_name $CURRENT_YEAR"
 
-    echo ""
-    echo ""
-
     local term_width=$(tput cols)
     local frame_width=$HEADER_FRAME_WIDTH
-    local left_padding=$(( (term_width - frame_width) / 2 ))
+    local left_pos=$(( (term_width - frame_width) / 2 ))
 
-    # Top border
-    printf "%*s" "$left_padding" ""
+    # Top border (line 3)
+    tput cup 3 $left_pos
     printf "${COLORS[SUBTLE]}${CHAR[tl]}"
     for ((i=0; i<frame_width-2; i++)); do
         printf "${CHAR[h]}"
     done
-    printf "${CHAR[tr]}${COLORS[RESET]}\n"
+    printf "${CHAR[tr]}${COLORS[RESET]}"
 
-    # Title line
+    # Title line (line 4)
     local title_len=${#title}
     local inner_width=$((frame_width - 2))
     local title_padding=$(( (inner_width - title_len) / 2 ))
 
-    printf "%*s" "$left_padding" ""
+    tput cup 4 $left_pos
     printf "${COLORS[SUBTLE]}${CHAR[v]}${COLORS[RESET]}"
-    printf "%*s" "$title_padding" ""
+    tput cup 4 $((left_pos + 1 + title_padding))
     printf "${COLORS[ACCENT_BRIGHT]}${COLORS[BOLD]}%s${COLORS[RESET]}" "$title"
-    printf "%*s" "$((inner_width - title_len - title_padding))" ""
-    printf "${COLORS[SUBTLE]}${CHAR[v]}${COLORS[RESET]}\n"
+    tput cup 4 $((left_pos + frame_width - 1))
+    printf "${COLORS[SUBTLE]}${CHAR[v]}${COLORS[RESET]}"
 
-    # Bottom border
-    printf "%*s" "$left_padding" ""
+    # Bottom border (line 5)
+    tput cup 5 $left_pos
     printf "${COLORS[SUBTLE]}${CHAR[bl]}"
     for ((i=0; i<frame_width-2; i++)); do
         printf "${CHAR[h]}"
     done
-    printf "${CHAR[br]}${COLORS[RESET]}\n"
-
-    echo ""
+    printf "${CHAR[br]}${COLORS[RESET]}"
 }
 
 # Elegant day headers with separators
@@ -51,10 +46,10 @@ draw_day_headers() {
 
     local term_width=$(tput cols)
     local grid_width=$CALENDAR_GRID_WIDTH
-    local left_padding=$(( (term_width - grid_width) / 2 ))
+    local left_pos=$(( (term_width - grid_width) / 2 ))
 
-    # Day names with week column header
-    printf "%*s" "$left_padding" ""
+    # Day names with week column header (line 7)
+    tput cup 7 $left_pos
     # Week column header
     printf "${COLORS[BASE_DIMMER]}${COLORS[BOLD]}wk${COLORS[RESET]} ${COLORS[SUBTLE]}${CHAR[v_light]}${COLORS[RESET]}  "
 
@@ -71,10 +66,9 @@ draw_day_headers() {
             printf "   "
         fi
     done
-    echo ""
 
-    # Subtle separator
-    printf "%*s" "$left_padding" ""
+    # Subtle separator (line 8)
+    tput cup 8 $left_pos
     # Week column separator
     printf "${COLORS[SUBTLE]}${COLORS[DIM]}${CHAR[h]}${CHAR[h]}${COLORS[RESET]} ${COLORS[SUBTLE]}${CHAR[v_light]}${COLORS[RESET]}  "
 
@@ -84,6 +78,4 @@ draw_day_headers() {
             printf "   "
         fi
     done
-    echo ""
-    echo ""
 }

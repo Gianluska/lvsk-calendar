@@ -53,7 +53,11 @@ render() {
 main() {
     setup_terminal
     setup_hyprland
-    show_splash
+
+    # Show splash unless user configured to skip it
+    if [ "$SKIP_SPLASH" != "true" ]; then
+        show_splash
+    fi
 
     # Main event loop
     while true; do
