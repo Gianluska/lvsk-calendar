@@ -15,7 +15,7 @@
 [![Version](https://img.shields.io/badge/version-0.3.1-blue.svg)](https://github.com/Gianluska/lvsk-calendar)
 [![AUR](https://img.shields.io/aur/version/lvsk-calendar)](https://aur.archlinux.org/packages/lvsk-calendar)
 
-<img src="assets/calendar.png" alt="lvsk-calendar screenshot" width="600"/>
+<img src="assets/calendar.png" alt="lvsk-calendar screenshot"/>
 
 </div>
 
