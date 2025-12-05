@@ -12,7 +12,7 @@
 **Terminal-based calendar with minimalist design and extensive customization**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.3.1-blue.svg)](https://github.com/Gianluska/lvsk-calendar)
+[![Version](https://img.shields.io/badge/version-0.3.2-blue.svg)](https://github.com/Gianluska/lvsk-calendar)
 [![AUR](https://img.shields.io/aur/version/lvsk-calendar)](https://aur.archlinux.org/packages/lvsk-calendar)
 
 <img src="assets/calendar.png" alt="lvsk-calendar screenshot"/>
