@@ -1,8 +1,12 @@
-# lvsk-calendar
-
 <div align="center">
+```
+                                    |               |
+                                       | \ \   /  __|  |  /
+                                      |  \ \ / \__ \    <
+                                      _|   \_/  ____/ _|\_\
+```
 
-<img src="assets/logo.png" alt="lvsk-calendar logo" width="200"/>
+# lvsk-calendar
 
 **Terminal-based calendar with minimalist design and extensive customization**
 
@@ -262,7 +266,7 @@ Contributions are welcome! Areas for improvement:
 
 ## 📄 License
 
-Open source - use it however you want.
+MIT - Use it however you want.
 
 ## 🙏 Acknowledgments
 
