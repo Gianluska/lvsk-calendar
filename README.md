@@ -1,67 +1,60 @@
 # lvsk-calendar
 
-Terminal-based calendar application with minimalist design and monochromatic pastel aesthetics.
+<div align="center">
 
-## Overview
+<img src="assets/logo.png" alt="lvsk-calendar logo" width="200"/>
 
-lvsk-calendar is a lightweight, keyboard-driven calendar interface designed for terminal environments. Built with pure bash, it provides month-view navigation with minimal dependencies.
+**Terminal-based calendar with minimalist design and extensive customization**
 
-```
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-0.3.1-blue.svg)](https://github.com/Gianluska/lvsk-calendar)
+[![AUR](https://img.shields.io/aur/version/lvsk-calendar)](https://aur.archlinux.org/packages/lvsk-calendar)
 
+<img src="assets/calendar.png" alt="lvsk-calendar screenshot" width="600"/>
 
-                    ╭──────────────────────────────────────╮
-                    │            November 2025             │    ◦
-                    ╰──────────────────────────────────────╯◦   ·   ◦
-              ·   ·                     ˙                    ·     ·
-                        mo   tu   we   th   fr   sa   su ◦ ·         · ◦
-                        ──   ──   ──   ──   ──   ──   ──     ·     ·
-            ∘   ·   ∘   ˙   ˙      ○         ○      ˙   ˙   ◦   ·   ◦
-                          ·    ·    ·    ·    ·   1·   2·       ◦
+</div>
 
-                         3    4    5    6    7    8·   9·
+## 📖 Overview
 
-                        10   11   12   13   14   15·  16·
-                                                          ˙           ·
-                        17   18   19   20   21   22·  23·
+**lvsk-calendar** is a lightweight, modular terminal calendar written in pure Bash. Designed for Arch Linux and Hyprland enthusiasts, it combines minimalist aesthetics with powerful customization options. No compilation needed—just pure shell scripting.
 
-                        24   25   26   27   28   29·  30◆
-                               ○     ∘     ∘     ○
-                            ○           ∘           ○
-              ────────────────────────────────────────────────────
-                                        ○                   ○
-                 hjkl • nav   [] • month   t • today   q • quit ○
-                 ∘· · ·∘                ˙                 ˙   ˙
-               ∘ ·     · ∘                            ○ ˙       ˙ ○
-                 ∘· · ·∘                                  ˙   ˙
-                    ∘                                   ○   ˙   ○
-                                                            ○
-                      ∗                                   ✧
-```
+### Why lvsk-calendar?
 
-## Features
+- **🎨 Fully Customizable**: 5 built-in color schemes, custom backgrounds, and extensive configuration options
+- **⚡ Lightning Fast**: Minimal resource usage, instant rendering, pure Bash with no dependencies beyond coreutils
+- **🎯 Keyboard-Driven**: Arrow keys or vim-style navigation (hjkl)
+- **🪟 Hyprland Integration**: Automatic floating window setup with zero configuration
 
-**Interface**
-- Monochromatic color scheme
-- Month view with complete week rows
-- Visual highlighting for current and selected dates
-- Minimal resource footprint
+## ✨ Features
 
-**Navigation**
-- Arrow keys or vim-style (hjkl) movement
-- Quick return to current date
-- Month overflow with keyboard shortcuts
+### Visual & Interface
+- **5 Built-in Color Schemes**: monochrome (default), pastel, nord, dracula, gruvbox
+- **4 Background Styles**: orbital, stars, minimal, none + custom background support
+- **Month View Calendar**: Full month grid with complete weeks
+- **ISO 8601 Week Numbers**: Week numbers displayed alongside calendar
 
-**Integration**
-- Hyprland floating window support with auto-configuration
-- Automatic centering and optimal window sizing (600x500px)
+### Navigation
+- **Arrow Keys** or **hjkl** (vim-style): Navigate between days
+- **[ ]**: Previous/Next month shortcuts
+- **t**: Jump to today instantly
+- **q**: Exit application
+- **Smart Overflow**: Navigating past month boundaries auto-switches months
 
-**Dependencies**
-- bash
-- coreutils
+### Integration
+- **Hyprland**: Dynamic floating window rules (no manual config needed)
+- **Waybar**: Custom module support with one-click launch
+- **Terminal Emulators**: Auto-detection for ghostty, kitty, alacritty, foot, wezterm
 
-## Installation
+### Customization
+- **User Configuration**: `~/.config/lvsk-calendar/config.sh` with auto-setup
+- **Custom Backgrounds**: Create your own ASCII art backgrounds
+- **256-Color Support**: Full ANSI 256-color palette customization
+- **Character Mapping**: Customize all borders, corners, and decorative elements
+- **Layout Dimensions**: Adjustable frame widths and spacing
 
-### From AUR
+## 📦 Installation
+
+### From AUR (Recommended)
 
 ```bash
 yay -S lvsk-calendar
@@ -81,76 +74,215 @@ cd lvsk-calendar
 makepkg -si
 ```
 
-## Usage
+### Dependencies
+
+**Runtime:**
+- `bash` - Core shell interpreter
+- `coreutils` - date, tput, stty commands
+
+## 🚀 Usage
 
 ### Launch Methods
 
-**Option 1: Direct launch (inside existing terminal)**
+#### Direct Launch (in current terminal)
 ```bash
 lvsk-calendar
 ```
-Opens the calendar in your current terminal window.
+Opens the calendar in your existing terminal window.
 
-**Option 2: Launcher (recommended for Hyprland)**
+#### Launcher (recommended for Hyprland)
 ```bash
 lvsk-calendar-launcher
 ```
-Opens a new floating terminal window with the calendar automatically configured. No Hyprland configuration needed!
+Opens a new floating terminal window with auto-configured settings:
+- 600x500px centered window
+- Instant floating (no animations)
+- Auto-closes on exit
+- No manual Hyprland config needed!
 
 ### Keyboard Controls
 
-| Key | Action |
-|-----|--------|
-| `↑` `↓` `←` `→` | Navigate dates |
-| `h` `j` `k` `l` | Navigate dates (vim-style) |
-| `t` | Jump to today |
-| `q` | Exit application |
+| Key(s) | Action | Details |
+|--------|--------|---------|
+| `↑` / `k` | Previous week | Move up 7 days |
+| `↓` / `j` | Next week | Move down 7 days |
+| `←` / `h` | Previous day | Move left 1 day |
+| `→` / `l` | Next day | Move right 1 day |
+| `[` | Previous month | Jump to previous month |
+| `]` | Next month | Jump to next month |
+| `t` | Jump to today | Return to current date |
+| `q` | Quit | Exit application cleanly |
 
-## Integration
+## ⚙️ Configuration
+
+### First Run Setup
+
+On first launch, lvsk-calendar automatically:
+1. Creates `~/.config/lvsk-calendar/` directory
+2. Copies default configuration to `~/.config/lvsk-calendar/config.sh`
+3. Copies all built-in backgrounds to `~/.config/lvsk-calendar/backgrounds/`
+
+### Configuration File
+
+Edit your configuration:
+```bash
+nvim ~/.config/lvsk-calendar/config.sh
+```
+
+### Color Schemes
+
+Choose from 5 built-in color schemes:
+
+```bash
+COLOR_SCHEME="monochrome"    # Warm pastel monochrome (default)
+COLOR_SCHEME="pastel"        # Soft pastel colors
+COLOR_SCHEME="nord"          # Nord theme colors
+COLOR_SCHEME="dracula"       # Dracula theme
+COLOR_SCHEME="gruvbox"       # Gruvbox theme
+```
+
+### Background Styles
+
+Choose decorative backgrounds:
+
+```bash
+BACKGROUND_STYLE="orbital"   # Cosmic orbital design (default)
+BACKGROUND_STYLE="stars"     # Starry night pattern
+BACKGROUND_STYLE="minimal"   # Clean dots pattern
+BACKGROUND_STYLE="none"      # No decoration
+BACKGROUND_STYLE="custom"    # Your custom background
+```
+
+### Custom Backgrounds
+
+Create your own background:
+
+1. **Copy an existing background:**
+   ```bash
+   cp ~/.config/lvsk-calendar/backgrounds/orbital.sh \
+      ~/.config/lvsk-calendar/backgrounds/custom.sh
+   ```
+
+2. **Edit the function:**
+   ```bash
+   nvim ~/.config/lvsk-calendar/backgrounds/custom.sh
+   ```
+
+3. **Activate in config:**
+   ```bash
+   BACKGROUND_STYLE="custom"
+   ```
+
+### Advanced Customization
+
+#### Layout Dimensions
+```bash
+HEADER_FRAME_WIDTH=40        # Month/year frame width
+FOOTER_FRAME_WIDTH=52        # Controls footer width
+CALENDAR_GRID_WIDTH=38       # Calendar grid width
+```
+
+#### Behavior Settings
+```bash
+SKIP_SPLASH=false            # Show/hide splash screen on startup
+```
+
+#### Custom Colors (256-color ANSI)
+```bash
+COLORS[BASE]='\033[38;5;253m'           # Main text color
+COLORS[BASE_DIM]='\033[38;5;250m'       # Dimmed text
+COLORS[BASE_DIMMER]='\033[38;5;245m'    # More dimmed
+COLORS[ACCENT]='\033[38;5;254m'         # Accent color
+COLORS[ACCENT_BRIGHT]='\033[38;5;255m'  # Bright accent
+COLORS[SUBTLE]='\033[38;5;242m'         # Subtle elements
+COLORS[HIGHLIGHT]='\033[38;5;255m'      # Highlight color
+COLORS[HIGHLIGHT_BG]='\033[48;5;236m'   # Highlight background
+```
+
+#### Custom Characters
+```bash
+CHAR[h]='─'              # Horizontal border
+CHAR[v]='│'              # Vertical border
+CHAR[tl]='╭'             # Top-left corner
+CHAR[tr]='╮'             # Top-right corner
+CHAR[bl]='╰'             # Bottom-left corner
+CHAR[br]='╯'             # Bottom-right corner
+CHAR[dot]='·'            # Dot
+CHAR[circle]='○'         # Circle
+CHAR[filled_circle]='●'  # Filled circle
+CHAR[marker]='┃'         # Marker
+# ... and more (see config.example.sh for all options)
+```
+
+## 🔧 Integration
 
 ### Hyprland
 
-The launcher (`lvsk-calendar-launcher`) provides seamless Hyprland integration:
-- **Instantly opens** a new floating terminal window (no transition animations!)
-- **Auto-configures** window rules dynamically (no manual config needed)
-- **Centers** the window on screen
-- **Sets optimal dimensions** (600x500 pixels)
+The launcher (`lvsk-calendar-launcher`) provides **zero-config** Hyprland integration:
 
-The launcher works by:
-1. Dynamically adding temporary windowrules via `hyprctl`
-2. Opening a new terminal with a specific title
-3. The rules are applied **before** the window appears (smooth, instant floating!)
+**How it works:**
+1. Dynamically adds windowrules via `hyprctl`
+2. Opens terminal with special title
+3. Rules apply **before** window appears
+4. Auto-closes window on exit
 
-**Recommended keybind** (~/.config/hypr/hyprland.conf):
-```conf
-bind = $mainMod, C, exec, lvsk-calendar-launcher
-```
-
-No permanent Hyprland configuration required - everything is handled automatically!
+**Window Configuration:**
+- **Float:** Yes (automatic)
+- **Size:** 600x500 pixels
+- **Position:** Centered
+- **Animations:** Instant (no transition delay)
 
 ### Waybar
 
-Add a custom calendar module to your Waybar configuration:
+Add a calendar button to your Waybar:
 
-**~/.config/waybar/config**
-
+**`~/.config/waybar/config`**
 ```json
 {
   "modules-center": [
     "clock",
-    "custom/calendar",
-    "custom/update",
-    "custom/screenrecording-indicator"
+    "custom/calendar"
   ],
 
   "custom/calendar": {
-    "format": "󰃭 ",
+    "format": " 󰃭 ",
     "on-click": "lvsk-calendar-launcher",
     "tooltip-format": "Click to open calendar"
   }
 }
 ```
 
-## License
+## 🤝 Contributing
 
-MIT License. See repository for full license text.
+Contributions are welcome! Areas for improvement:
+- Terminal emulator support
+- Feature enhancements
+- Bug fixes
+- New background designs
+
+## 📄 License
+
+Open source - use it however you want.
+
+## 🙏 Acknowledgments
+
+- Inspired by minimalist terminal UI design
+- Built for the Arch Linux and Hyprland community
+- Powered by pure Bash and community feedback
+
+## 📚 Additional Resources
+
+- **Repository:** https://github.com/Gianluska/lvsk-calendar
+- **AUR Package:** https://aur.archlinux.org/packages/lvsk-calendar
+- **Issues:** https://github.com/Gianluska/lvsk-calendar/issues
+- **Example Configuration:** `config.example.sh`
+
+---
+
+<div align="center">
+
+**Made with ❤️ from Brazil**
+
+[⬆ Back to top](#lvsk-calendar)
+
+</div>
