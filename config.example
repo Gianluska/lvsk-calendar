@@ -1,0 +1,65 @@
+# lvsk-calendar Configuration
+
+# ============================================================================
+# COLOR SCHEME
+# ============================================================================
+# Available: monochrome (default), pastel, nord, dracula, gruvbox
+color_scheme=monochrome
+
+# ============================================================================
+# BACKGROUND ILLUSTRATION
+# ============================================================================
+# Available by default: orbital (default), minimal, stars, none
+background_style=orbital
+
+# All backgrounds are in: ~/.config/lvsk-calendar/backgrounds/
+# You can edit them directly or create new ones!
+# To create a custom background:
+#   1. Copy an existing: cp ~/.config/lvsk-calendar/backgrounds/orbital.sh ~/.config/lvsk-calendar/backgrounds/custom.sh
+#   2. Edit it: nvim ~/.config/lvsk-calendar/backgrounds/custom.sh
+#   3. Use it: background_style=custom
+
+# ============================================================================
+# DIMENSIONS
+# ============================================================================
+# Customize the width of UI components
+header_frame_width=40
+footer_frame_width=52
+calendar_grid_width=38
+
+# ============================================================================
+# BEHAVIOR
+# ============================================================================
+# Skip splash screen on startup (true/false)
+skip_splash=false
+
+# ============================================================================
+# ADVANCED: CUSTOM COLORS
+# ============================================================================
+# Override individual colors using hex (#RRGGBB)
+#
+# color_base=#E0E0E0
+# color_base_dim=#BCBCBC
+# color_base_dimmer=#8A8A8A
+# color_accent=#EEEEEE
+# color_accent_bright=#FFFFFF
+# color_subtle=#6C6C6C
+# color_highlight=#FFFFFF
+# color_highlight_bg=#303030
+
+# ============================================================================
+# ADVANCED: CUSTOM CHARACTERS
+# ============================================================================
+# You can override individual characters for borders and indicators
+# Uncomment and customize as needed:
+#
+# char_h=─
+# char_v=│
+# char_tl=╭
+# char_tr=╮
+# char_bl=╰
+# char_br=╯
+# char_dot=·
+# char_circle=○
+# char_filled_circle=●
+# char_marker=┃

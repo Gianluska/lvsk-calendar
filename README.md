@@ -12,7 +12,7 @@
 **Terminal-based calendar with minimalist design and extensive customization**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.3.2-blue.svg)](https://github.com/Gianluska/lvsk-calendar)
+[![Version](https://img.shields.io/badge/version-0.3.3-blue.svg)](https://github.com/Gianluska/lvsk-calendar)
 [![AUR](https://img.shields.io/aur/version/lvsk-calendar)](https://aur.archlinux.org/packages/lvsk-calendar)
 
 <img src="assets/calendar.png" alt="lvsk-calendar screenshot"/>
@@ -51,9 +51,9 @@
 - **Terminal Emulators**: Auto-detection for ghostty, kitty, alacritty, foot, wezterm
 
 ### Customization
-- **User Configuration**: `~/.config/lvsk-calendar/config.sh` with auto-setup
+- **User Configuration**: `~/.config/lvsk-calendar/config` with auto-setup
 - **Custom Backgrounds**: Create your own ASCII art backgrounds
-- **256-Color Support**: Full ANSI 256-color palette customization
+- **True Color Support**: Hex (#RRGGBB) or ANSI 256-color palette
 - **Character Mapping**: Customize all borders, corners, and decorative elements
 - **Layout Dimensions**: Adjustable frame widths and spacing
 
@@ -124,38 +124,38 @@ Opens a new floating terminal window with auto-configured settings:
 
 On first launch, lvsk-calendar automatically:
 1. Creates `~/.config/lvsk-calendar/` directory
-2. Copies default configuration to `~/.config/lvsk-calendar/config.sh`
+2. Copies default configuration to `~/.config/lvsk-calendar/config`
 3. Copies all built-in backgrounds to `~/.config/lvsk-calendar/backgrounds/`
 
 ### Configuration File
 
 Edit your configuration:
 ```bash
-nvim ~/.config/lvsk-calendar/config.sh
+nvim ~/.config/lvsk-calendar/config
 ```
 
 ### Color Schemes
 
 Choose from 5 built-in color schemes:
 
-```bash
-COLOR_SCHEME="monochrome"    # Warm pastel monochrome (default)
-COLOR_SCHEME="pastel"        # Soft pastel colors
-COLOR_SCHEME="nord"          # Nord theme colors
-COLOR_SCHEME="dracula"       # Dracula theme
-COLOR_SCHEME="gruvbox"       # Gruvbox theme
+```
+color_scheme=monochrome    # Warm pastel monochrome (default)
+color_scheme=pastel        # Soft pastel colors
+color_scheme=nord          # Nord theme colors
+color_scheme=dracula       # Dracula theme
+color_scheme=gruvbox       # Gruvbox theme
 ```
 
 ### Background Styles
 
 Choose decorative backgrounds:
 
-```bash
-BACKGROUND_STYLE="orbital"   # Cosmic orbital design (default)
-BACKGROUND_STYLE="stars"     # Starry night pattern
-BACKGROUND_STYLE="minimal"   # Clean dots pattern
-BACKGROUND_STYLE="none"      # No decoration
-BACKGROUND_STYLE="custom"    # Your custom background
+```
+background_style=orbital   # Cosmic orbital design (default)
+background_style=stars     # Starry night pattern
+background_style=minimal   # Clean dots pattern
+background_style=none      # No decoration
+background_style=custom    # Your custom background
 ```
 
 ### Custom Backgrounds
@@ -174,49 +174,44 @@ Create your own background:
    ```
 
 3. **Activate in config:**
-   ```bash
-   BACKGROUND_STYLE="custom"
+   ```
+   background_style=custom
    ```
 
 ### Advanced Customization
 
 #### Layout Dimensions
-```bash
-HEADER_FRAME_WIDTH=40        # Month/year frame width
-FOOTER_FRAME_WIDTH=52        # Controls footer width
-CALENDAR_GRID_WIDTH=38       # Calendar grid width
+```
+header_frame_width=40        # Month/year frame width
+footer_frame_width=52        # Controls footer width
+calendar_grid_width=38       # Calendar grid width
 ```
 
 #### Behavior Settings
-```bash
-SKIP_SPLASH=false            # Show/hide splash screen on startup
+```
+skip_splash=false            # Show/hide splash screen on startup
 ```
 
-#### Custom Colors (256-color ANSI)
-```bash
-COLORS[BASE]='\033[38;5;253m'           # Main text color
-COLORS[BASE_DIM]='\033[38;5;250m'       # Dimmed text
-COLORS[BASE_DIMMER]='\033[38;5;245m'    # More dimmed
-COLORS[ACCENT]='\033[38;5;254m'         # Accent color
-COLORS[ACCENT_BRIGHT]='\033[38;5;255m'  # Bright accent
-COLORS[SUBTLE]='\033[38;5;242m'         # Subtle elements
-COLORS[HIGHLIGHT]='\033[38;5;255m'      # Highlight color
-COLORS[HIGHLIGHT_BG]='\033[48;5;236m'   # Highlight background
+#### Custom Colors (hex or ANSI 256)
+```
+# Using hex colors
+color_base=#E0E0E0
+color_accent=#88C0D0
+
+# Or ANSI 256 codes
+color_base=253
+color_subtle=242
+color_highlight_bg=236
 ```
 
 #### Custom Characters
-```bash
-CHAR[h]='─'              # Horizontal border
-CHAR[v]='│'              # Vertical border
-CHAR[tl]='╭'             # Top-left corner
-CHAR[tr]='╮'             # Top-right corner
-CHAR[bl]='╰'             # Bottom-left corner
-CHAR[br]='╯'             # Bottom-right corner
-CHAR[dot]='·'            # Dot
-CHAR[circle]='○'         # Circle
-CHAR[filled_circle]='●'  # Filled circle
-CHAR[marker]='┃'         # Marker
-# ... and more (see config.example.sh for all options)
+```
+char_h=─              # Horizontal border
+char_v=│              # Vertical border
+char_tl=╭             # Top-left corner
+char_tr=╮             # Top-right corner
+char_bl=╰             # Bottom-left corner
+char_br=╯             # Bottom-right corner
 ```
 
 ## 🔧 Integration
@@ -280,7 +275,7 @@ MIT - Use it however you want.
 - **Repository:** https://github.com/Gianluska/lvsk-calendar
 - **AUR Package:** https://aur.archlinux.org/packages/lvsk-calendar
 - **Issues:** https://github.com/Gianluska/lvsk-calendar/issues
-- **Example Configuration:** `config.example.sh`
+- **Example Configuration:** `config.example`
 
 ---
 

@@ -128,30 +128,103 @@ declare -g SKIP_SPLASH=false
 # USER CONFIGURATION
 # ============================================================================
 
+# Convert color value to ANSI escape sequence
+# Supports: hex (#RRGGBB or RRGGBB), ANSI 256 codes (0-255)
+parse_color() {
+    local value="$1"
+    local type="${2:-fg}"  # fg or bg
+
+    # Remove # if present
+    value="${value#\#}"
+
+    # Check if it's a hex color (6 characters, valid hex)
+    if [[ ${#value} -eq 6 && "$value" =~ ^[0-9A-Fa-f]+$ ]]; then
+        # Convert hex to RGB
+        local r=$((16#${value:0:2}))
+        local g=$((16#${value:2:2}))
+        local b=$((16#${value:4:2}))
+
+        if [[ "$type" == "bg" ]]; then
+            echo "\033[48;2;${r};${g};${b}m"
+        else
+            echo "\033[38;2;${r};${g};${b}m"
+        fi
+    else
+        # Assume ANSI 256 code
+        if [[ "$type" == "bg" ]]; then
+            echo "\033[48;5;${value}m"
+        else
+            echo "\033[38;5;${value}m"
+        fi
+    fi
+}
+
+# Parse a .config file (key=value format)
+parse_config_file() {
+    local config_file="$1"
+
+    while IFS='=' read -r key value || [ -n "$key" ]; do
+        # Skip empty lines and comments
+        [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+
+        # Trim whitespace
+        key=$(echo "$key" | tr -d '[:space:]')
+        value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+        # Apply configuration based on key
+        case "$key" in
+            color_scheme)       COLOR_SCHEME="$value" ;;
+            background_style)   BACKGROUND_STYLE="$value" ;;
+            header_frame_width) HEADER_FRAME_WIDTH="$value" ;;
+            footer_frame_width) FOOTER_FRAME_WIDTH="$value" ;;
+            calendar_grid_width) CALENDAR_GRID_WIDTH="$value" ;;
+            skip_splash)        SKIP_SPLASH="$value" ;;
+
+            # Custom colors (hex #RRGGBB or ANSI 256 codes)
+            color_base)         COLORS[BASE]="$(parse_color "$value" fg)" ;;
+            color_base_dim)     COLORS[BASE_DIM]="$(parse_color "$value" fg)" ;;
+            color_base_dimmer)  COLORS[BASE_DIMMER]="$(parse_color "$value" fg)" ;;
+            color_accent)       COLORS[ACCENT]="$(parse_color "$value" fg)" ;;
+            color_accent_bright) COLORS[ACCENT_BRIGHT]="$(parse_color "$value" fg)" ;;
+            color_subtle)       COLORS[SUBTLE]="$(parse_color "$value" fg)" ;;
+            color_highlight)    COLORS[HIGHLIGHT]="$(parse_color "$value" fg)" ;;
+            color_highlight_bg) COLORS[HIGHLIGHT_BG]="$(parse_color "$value" bg)" ;;
+
+            # Custom characters
+            char_h)             CHAR[h]="$value" ;;
+            char_v)             CHAR[v]="$value" ;;
+            char_tl)            CHAR[tl]="$value" ;;
+            char_tr)            CHAR[tr]="$value" ;;
+            char_bl)            CHAR[bl]="$value" ;;
+            char_br)            CHAR[br]="$value" ;;
+            char_dot)           CHAR[dot]="$value" ;;
+            char_circle)        CHAR[circle]="$value" ;;
+            char_filled_circle) CHAR[filled_circle]="$value" ;;
+            char_marker)        CHAR[marker]="$value" ;;
+        esac
+    done < "$config_file"
+}
+
 load_user_config() {
-    local user_config="${XDG_CONFIG_HOME:-$HOME/.config}/lvsk-calendar/config.sh"
-    local config_dir="$(dirname "$user_config")"
+    local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/lvsk-calendar"
+    local user_config="${config_dir}/config"
     local backgrounds_dir="${config_dir}/backgrounds"
 
     # Create config directory if it doesn't exist
-    if [ ! -d "$config_dir" ]; then
-        mkdir -p "$config_dir"
-    fi
+    [ ! -d "$config_dir" ] && mkdir -p "$config_dir"
 
     # Create backgrounds directory if it doesn't exist
-    if [ ! -d "$backgrounds_dir" ]; then
-        mkdir -p "$backgrounds_dir"
-    fi
+    [ ! -d "$backgrounds_dir" ] && mkdir -p "$backgrounds_dir"
 
     # If user config doesn't exist, create it from example
     if [ ! -f "$user_config" ]; then
         local example_config=""
 
         # Try to find example config (installed location first, then development)
-        if [ -f "/usr/share/doc/lvsk-calendar/config.example.sh" ]; then
-            example_config="/usr/share/doc/lvsk-calendar/config.example.sh"
-        elif [ -f "${SRC_DIR}/../config.example.sh" ]; then
-            example_config="${SRC_DIR}/../config.example.sh"
+        if [ -f "/usr/share/doc/lvsk-calendar/config.example" ]; then
+            example_config="/usr/share/doc/lvsk-calendar/config.example"
+        elif [ -f "${SRC_DIR}/../config.example" ]; then
+            example_config="${SRC_DIR}/../config.example"
         fi
 
         # Copy example to user config if found
@@ -179,9 +252,11 @@ load_user_config() {
         done
     fi
 
-    # Load user configuration if it exists
+    # Parse user configuration if it exists
     if [ -f "$user_config" ]; then
-        source "$user_config"
+        parse_config_file "$user_config"
+        apply_color_scheme "$COLOR_SCHEME"
+        parse_config_file "$user_config"
     fi
 }
 
@@ -193,11 +268,10 @@ load_user_config() {
 COLOR_SCHEME="${COLOR_SCHEME:-monochrome}"
 
 # Set default background style
-# All backgrounds are loaded from ~/.config/lvsk-calendar/backgrounds/
 BACKGROUND_STYLE="${BACKGROUND_STYLE:-orbital}"
 
-# Load user configuration
-load_user_config
-
-# Apply color scheme (user config can override COLOR_SCHEME)
+# Apply defalt color scheme
 apply_color_scheme "$COLOR_SCHEME"
+
+# Load user configuration (will override defaults)
+load_user_config
