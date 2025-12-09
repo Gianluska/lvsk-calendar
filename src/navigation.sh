@@ -35,9 +35,9 @@ next_month() {
 
 # Navigate to today's date
 goto_today() {
-    CURRENT_MONTH=$(date +%m)
+    CURRENT_MONTH=$(date +%-m)
     CURRENT_YEAR=$(date +%Y)
-    SELECTED_DAY=$(date +%d)
+    SELECTED_DAY=$(date +%-d)
 }
 
 # Handle day navigation overflow/underflow

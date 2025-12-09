@@ -110,9 +110,9 @@ declare -gA CHAR=(
 )
 
 # Global state variables
-declare -g CURRENT_MONTH=$(date +%m)
+declare -g CURRENT_MONTH=$(date +%-m)
 declare -g CURRENT_YEAR=$(date +%Y)
-declare -g TODAY_DAY=$(date +%d)
+declare -g TODAY_DAY=$(date +%-d)
 declare -g SELECTED_DAY=$TODAY_DAY
 declare -g FIRST_RENDER=1
 
