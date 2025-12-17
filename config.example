@@ -34,6 +34,15 @@ calendar_grid_width=38
 skip_splash=false
 
 # ============================================================================
+# HOLIDAYS
+# ============================================================================
+# Enable public holidays display (true/false)
+holidays_enabled=true
+
+# Country code for holidays (2-letter ISO code, e.g., BR, US, DE)
+# country_code=BR
+
+# ============================================================================
 # ADVANCED: CUSTOM COLORS
 # ============================================================================
 # Override individual colors using hex (#RRGGBB)

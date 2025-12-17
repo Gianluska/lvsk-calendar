@@ -4,7 +4,7 @@
 # A clean, minimalist approach with sparse decorations
 
 draw_custom_background() {
-    printf "${COLORS[SUBTLE]}${COLORS[DIM]}%s${COLORS[RESET]}" \
+    printf "${COLORS[BG]}%s${COLORS[RESET]}" \
 "
 
 

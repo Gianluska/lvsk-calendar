@@ -4,7 +4,7 @@
 # A night sky filled with twinkling stars
 
 draw_custom_background() {
-    printf "${COLORS[SUBTLE]}${COLORS[DIM]}%s${COLORS[RESET]}" \
+    printf "${COLORS[BG]}%s${COLORS[RESET]}" \
 "
                                                                           ✧
          ✦                                              ✧            ·
