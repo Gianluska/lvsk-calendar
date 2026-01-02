@@ -69,8 +69,11 @@ draw_footer() {
             "${COLORS[RESET]}"
     done
 
-    # Controls line (line 24)
-    tput cup 24 $((left_pos + 3))
+    # Controls line (line 24) - centered on screen
+    # 58 = visible character count of controls (excluding ANSI codes)
+    local controls_pos=$(((term_width - 58) / 2))
+
+    tput cup 24 "${controls_pos}"
 
     # Navigation hint
     printf '%bhjkl%b %b%s%b %bnav%b' \

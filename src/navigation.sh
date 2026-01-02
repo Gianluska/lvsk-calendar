@@ -59,7 +59,6 @@ next_month() {
 
 #######################################
 # Navigate to previous year
-# Wraps to previous year if needed
 # Globals:
 #   CURRENT_MONTH - Remains unchanged
 #   CURRENT_YEAR - Decremented
@@ -78,10 +77,8 @@ prev_year() {
     FIRST_RENDER=1
 }
 
-
 #######################################
 # Navigate to next year
-# Wraps to next year if needed
 # Globals:
 #   CURRENT_MONTH - Remains unchanged
 #   CURRENT_YEAR - Incremented
@@ -90,6 +87,7 @@ prev_year() {
 #######################################
 next_year() {
     CURRENT_YEAR=$((CURRENT_YEAR + 1))
+
     # Clamp selected day to valid range for new month
     local max_days
     max_days=$(days_in_month "${CURRENT_MONTH}" "${CURRENT_YEAR}")
@@ -98,7 +96,6 @@ next_year() {
     # Force full re-render when changing month
     FIRST_RENDER=1
 }
-
 
 #######################################
 # Navigate to today's date
