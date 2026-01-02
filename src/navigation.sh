@@ -58,6 +58,46 @@ next_month() {
 }
 
 #######################################
+# Navigate to previous year
+# Globals:
+#   CURRENT_MONTH - Remains unchanged
+#   CURRENT_YEAR - Decremented
+#   SELECTED_DAY - Adjusted if exceeds new month's days
+#   FIRST_RENDER - Set to 1 to force full re-render
+#######################################
+prev_year() {
+    CURRENT_YEAR=$((CURRENT_YEAR - 1))
+
+    # Clamp selected day to valid range for new month
+    local max_days
+    max_days=$(days_in_month "${CURRENT_MONTH}" "${CURRENT_YEAR}")
+    ((SELECTED_DAY > max_days)) && SELECTED_DAY="${max_days}"
+
+    # Force full re-render when changing month
+    FIRST_RENDER=1
+}
+
+#######################################
+# Navigate to next year
+# Globals:
+#   CURRENT_MONTH - Remains unchanged
+#   CURRENT_YEAR - Incremented
+#   SELECTED_DAY - Adjusted if exceeds new month's days
+#   FIRST_RENDER - Set to 1 to force full re-render
+#######################################
+next_year() {
+    CURRENT_YEAR=$((CURRENT_YEAR + 1))
+
+    # Clamp selected day to valid range for new month
+    local max_days
+    max_days=$(days_in_month "${CURRENT_MONTH}" "${CURRENT_YEAR}")
+    ((SELECTED_DAY > max_days)) && SELECTED_DAY="${max_days}"
+
+    # Force full re-render when changing month
+    FIRST_RENDER=1
+}
+
+#######################################
 # Navigate to today's date
 # Resets view to current month/year and selects today
 # Globals:
