@@ -79,6 +79,14 @@ _handle_regular_keys() {
             # Next month
             next_month
             ;;
+        '{')
+            # Previous year
+            prev_year
+            ;;
+        '}')
+            # Next year
+            next_year
+            ;;
         h)
             # Vim: move left one day
             SELECTED_DAY=$((SELECTED_DAY - DAY_STEP))

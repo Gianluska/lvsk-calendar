@@ -96,6 +96,18 @@ draw_footer() {
 
     printf '   '
 
+    # Year navigation hint
+    printf '%b{}%b %b%s%b %byear%b' \
+        "${COLORS[BASE_DIM]}" \
+        "${COLORS[RESET]}" \
+        "${COLORS[SUBTLE]}" \
+        "${CHAR[bullet]}" \
+        "${COLORS[RESET]}" \
+        "${COLORS[BASE]}" \
+        "${COLORS[RESET]}"
+
+    printf '   '
+
     # Today hint
     printf '%bt%b %b%s%b %btoday%b' \
         "${COLORS[BASE_DIM]}" \
