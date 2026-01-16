@@ -37,6 +37,7 @@
 - **4 Background Styles**: orbital, stars, minimal, none + custom background support
 - **Month View Calendar**: Full month grid with complete weeks
 - **ISO 8601 Week Numbers**: Week numbers displayed alongside calendar
+- **Public Holidays**: Auto-detected country holidays with local caching
 
 ### Navigation
 - **Arrow Keys** or **hjkl** (vim-style): Navigate between days
@@ -84,6 +85,10 @@ makepkg -si
 **Runtime:**
 - `bash` - Core shell interpreter
 - `coreutils` - date, tput, stty commands
+
+**Optional (for holidays):**
+- `curl` - Fetch holiday data from public API
+- `jq` - JSON parsing (fallback available without it)
 
 ## 🚀 Usage
 
@@ -191,6 +196,14 @@ calendar_grid_width=38       # Calendar grid width
 ```
 skip_splash=false            # Show/hide splash screen on startup
 ```
+
+#### Holidays
+```
+holidays_enabled=true        # Enable public holidays display
+country_code=BR              # 2-letter ISO country code (auto-detected if omitted)
+```
+
+Holidays are fetched from the [Nager.Date API](https://date.nager.at) and cached locally in `~/.cache/lvsk-calendar/holidays/`. Country is auto-detected from your system locale if not configured.
 
 #### Custom Colors (hex or ANSI 256)
 ```

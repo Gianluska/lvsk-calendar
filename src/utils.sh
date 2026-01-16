@@ -90,6 +90,9 @@ get_week_number() {
 # TERMINAL MANAGEMENT
 # ============================================================================
 
+# Global: Window address captured at startup for safe cleanup
+declare -g LVSK_WINDOW_ADDRESS=""
+
 #######################################
 # Setup terminal for TUI mode
 # Hides cursor, enables alternate screen, disables echo
@@ -119,19 +122,22 @@ cleanup_terminal() {
     # Clear screen
     clear
 
-    # Close terminal window in Hyprland when exiting
-    if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
-        local window_address
-        window_address=$(hyprctl activewindow -j 2>/dev/null | grep -oP '"address": "\K[^"]+' | head -1) || true
-        if [[ -n "${window_address}" ]]; then
-            hyprctl dispatch closewindow "address:${window_address}" 2>/dev/null || true
+    # Close terminal window in Hyprland only when launched via launcher
+    # When running directly in terminal (./lvsk-calendar), just exit without closing the terminal
+    if [[ -n "${LAUNCHED_BY_LAUNCHER:-}" && -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" && -n "${LVSK_WINDOW_ADDRESS:-}" ]]; then
+        # Verify window still exists before attempting to close
+        # This prevents closing a different window if the calendar was already closed
+        if hyprctl clients -j 2>/dev/null | grep -q "\"address\": \"${LVSK_WINDOW_ADDRESS}\""; then
+            hyprctl dispatch closewindow "address:${LVSK_WINDOW_ADDRESS}" 2>/dev/null || true
         fi
     fi
 }
 
 #######################################
 # Setup Hyprland floating window
-# Applies any Hyprland-specific window settings
+# Captures window address and applies Hyprland-specific settings
+# Globals:
+#   LVSK_WINDOW_ADDRESS - Set to current window address
 #######################################
 setup_hyprland() {
     # Check if running in Hyprland
@@ -139,6 +145,10 @@ setup_hyprland() {
         # Window should already be floating via windowrules
         # Small delay to ensure windowrules are applied
         sleep 0.1
+
+        # Capture our window address at startup for safe cleanup later
+        # This prevents closing a different window if focus changed
+        LVSK_WINDOW_ADDRESS=$(hyprctl activewindow -j 2>/dev/null | grep -oP '"address": "\K[^"]+' | head -1) || true
     fi
 }
 

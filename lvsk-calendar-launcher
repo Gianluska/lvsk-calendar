@@ -15,22 +15,24 @@ fi
 
 # Add temporary windowrules for Hyprland (only if running in Hyprland)
 if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
-    hyprctl keyword windowrulev2 "float, title:^(lvsk-calendar)$" 2>/dev/null
-    hyprctl keyword windowrulev2 "size 600 500, title:^(lvsk-calendar)$" 2>/dev/null
-    hyprctl keyword windowrulev2 "center, title:^(lvsk-calendar)$" 2>/dev/null
+    # Hyprland 0.53+ syntax
+    hyprctl keyword windowrule "float on, match:title ^lvsk-calendar$" 2>/dev/null
+    hyprctl keyword windowrule "size 600 500, match:title ^lvsk-calendar$" 2>/dev/null
+    hyprctl keyword windowrule "center on, match:title ^lvsk-calendar$" 2>/dev/null
 fi
 
 # Detect terminal emulator and launch with proper title
+# LAUNCHED_BY_LAUNCHER tells the calendar to close the terminal window on exit
 if command -v ghostty &> /dev/null; then
-    ghostty --title="lvsk-calendar" -e "${CALENDAR_SCRIPT}"
+    ghostty --title="lvsk-calendar" -e env LAUNCHED_BY_LAUNCHER=1 "${CALENDAR_SCRIPT}"
 elif command -v kitty &> /dev/null; then
-    kitty --title="lvsk-calendar" -e "${CALENDAR_SCRIPT}"
+    kitty --title="lvsk-calendar" -e env LAUNCHED_BY_LAUNCHER=1 "${CALENDAR_SCRIPT}"
 elif command -v alacritty &> /dev/null; then
-    alacritty --title="lvsk-calendar" -e "${CALENDAR_SCRIPT}"
+    alacritty --title="lvsk-calendar" -e env LAUNCHED_BY_LAUNCHER=1 "${CALENDAR_SCRIPT}"
 elif command -v foot &> /dev/null; then
-    foot --title="lvsk-calendar" "${CALENDAR_SCRIPT}"
+    foot --title="lvsk-calendar" env LAUNCHED_BY_LAUNCHER=1 "${CALENDAR_SCRIPT}"
 elif command -v wezterm &> /dev/null; then
-    wezterm start --class="lvsk-calendar" -- "${CALENDAR_SCRIPT}"
+    wezterm start --class="lvsk-calendar" -- env LAUNCHED_BY_LAUNCHER=1 "${CALENDAR_SCRIPT}"
 else
     echo "Error: No supported terminal emulator found (ghostty, kitty, alacritty, foot, wezterm)"
     exit 1
