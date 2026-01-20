@@ -114,6 +114,9 @@ goto_today() {
 
     printf -v SELECTED_DAY '%(%d)T' -1
     SELECTED_DAY="${SELECTED_DAY#0}"  # Remove leading zero
+
+    # Force full re-render when changing month
+    FIRST_RENDER=1
 }
 
 #######################################
