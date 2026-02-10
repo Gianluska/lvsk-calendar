@@ -38,6 +38,8 @@ draw_calendar() {
 
     local grid_width="${CALENDAR_GRID_WIDTH}"
     local left_pos=$(((term_width - grid_width) / 2))
+    # Prevent negative position (small terminals)
+    ((left_pos < 0)) && left_pos=0
     local line_num=10  # Starting line for calendar grid
 
     # Draw up to 6 weeks

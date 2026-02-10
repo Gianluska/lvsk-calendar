@@ -16,9 +16,9 @@ fi
 # Add temporary windowrules for Hyprland (only if running in Hyprland)
 if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
     # Hyprland 0.53+ syntax
-    hyprctl keyword windowrule "float on, match:title ^lvsk-calendar$" 2>/dev/null
-    hyprctl keyword windowrule "size 600 500, match:title ^lvsk-calendar$" 2>/dev/null
-    hyprctl keyword windowrule "center on, match:title ^lvsk-calendar$" 2>/dev/null
+    hyprctl keyword windowrule "float on, match:title ^lvsk-calendar$" >/dev/null 2>&1
+    hyprctl keyword windowrule "size 600 500, match:title ^lvsk-calendar$" >/dev/null 2>&1
+    hyprctl keyword windowrule "center on, match:title ^lvsk-calendar$" >/dev/null 2>&1
 fi
 
 # Detect terminal emulator and launch with proper title

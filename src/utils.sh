@@ -104,8 +104,8 @@ setup_terminal() {
     tput smcup
     # Clear screen
     clear
-    # Disable echo
-    stty -echo
+    # Disable echo and use /dev/tty to work when launched from app launchers
+    stty -echo < /dev/tty
 }
 
 #######################################
@@ -117,8 +117,8 @@ cleanup_terminal() {
     tput cnorm
     # Disable alternate screen buffer (restore original)
     tput rmcup
-    # Enable echo
-    stty echo
+    # Enable echo and use /dev/tty to work when launched from app launchers
+    stty echo < /dev/tty
     # Clear screen
     clear
 

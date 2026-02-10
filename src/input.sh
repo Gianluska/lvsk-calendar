@@ -19,12 +19,13 @@ handle_input() {
     local key
 
     # Read single character with no echo
-    IFS= read -rsn1 key
+    # Use /dev/tty explicitly to work when launched from app launchers
+    IFS= read -rsn1 key < /dev/tty
 
     # Handle escape sequences (arrow keys, function keys, etc.)
     if [[ "${key}" == $'\x1b' ]]; then
         # Read additional characters for escape sequence
-        read -rsn2 -t 0.1 key
+        read -rsn2 -t 0.1 key < /dev/tty
         _handle_arrow_keys "${key}"
     else
         _handle_regular_keys "${key}"

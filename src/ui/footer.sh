@@ -19,6 +19,8 @@ draw_footer() {
 
     local frame_width="${FOOTER_FRAME_WIDTH}"
     local left_pos=$(((term_width - frame_width) / 2))
+    # Prevent negative position (small terminals)
+    ((left_pos < 0)) && left_pos=0
 
     # Holiday info line (line 22) - above the divider
     tput cup 22 "${left_pos}"
@@ -72,6 +74,8 @@ draw_footer() {
     # Controls line (line 24) - centered on screen
     # 58 = visible character count of controls (excluding ANSI codes)
     local controls_pos=$(((term_width - 58) / 2))
+    # Prevent negative position (small terminals)
+    ((controls_pos < 0)) && controls_pos=0
 
     tput cup 24 "${controls_pos}"
 

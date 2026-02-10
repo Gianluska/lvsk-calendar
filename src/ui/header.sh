@@ -25,6 +25,8 @@ draw_header() {
 
     local frame_width="${HEADER_FRAME_WIDTH}"
     local left_pos=$(((term_width - frame_width) / 2))
+    # Prevent negative position (small terminals)
+    ((left_pos < 0)) && left_pos=0
     local inner_width=$((frame_width - 2))
 
     # Build horizontal border string (pure bash)
@@ -87,6 +89,8 @@ draw_day_headers() {
 
     local grid_width="${CALENDAR_GRID_WIDTH}"
     local left_pos=$(((term_width - grid_width) / 2))
+    # Prevent negative position (small terminals)
+    ((left_pos < 0)) && left_pos=0
 
     # Day names with week column header (line 7)
     tput cup 7 "${left_pos}"
