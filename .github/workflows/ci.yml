@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Syntax check (bash -n)
+        run: |
+          set -e
+          for f in lvsk-calendar lvsk-calendar-launcher src/*.sh src/ui/*.sh backgrounds/*.sh tests/helper.bash *.sh; do
+            bash -n "$f"
+            echo "ok $f"
+          done
+
+      - name: ShellCheck
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          # SC1090/SC1091: dynamic/relative sources; SC2034: globals consumed
+          # by sibling modules; SC2154: globals defined by sibling modules
+          shellcheck -S warning -e SC1090,SC1091,SC2034,SC2154 \
+            lvsk-calendar lvsk-calendar-launcher src/*.sh src/ui/*.sh backgrounds/*.sh
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq bats
+
+      - name: Run test suite
+        run: bats tests/

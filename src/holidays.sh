@@ -10,6 +10,7 @@
 # ============================================================================
 
 # Note: HOLIDAYS_ENABLED and COUNTRY_CODE are defined in config.sh
+# Note: _is_valid_date lives in utils.sh (shared with the events module)
 
 # Cache directory for holiday data
 declare -g HOLIDAYS_CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/lvsk-calendar/holidays"
@@ -21,8 +22,15 @@ declare -gA HOLIDAYS_DATA=()
 declare -g HOLIDAYS_LOADED_COUNTRY=""
 declare -g HOLIDAYS_LOADED_YEAR=""
 
-# API endpoint (readonly)
-declare -gr NAGER_API="https://date.nager.at/api/v3"
+# API endpoint (readonly, guarded so re-sourcing in tests doesn't trip)
+if [[ ! -v NAGER_API ]]; then
+    declare -gr NAGER_API="https://date.nager.at/api/v3"
+fi
+
+# Cache TTL for the current and future years (past years never change)
+if [[ ! -v HOLIDAYS_CACHE_TTL ]]; then
+    declare -gr HOLIDAYS_CACHE_TTL=$((30 * 24 * 3600))  # 30 days
+fi
 
 # ============================================================================
 # COUNTRY DETECTION
@@ -69,11 +77,12 @@ detect_country_from_locale() {
 
 #######################################
 # Save country code to config file
-# Uses pure bash for file manipulation (no sed/grep)
+# Rewrites the config atomically (tempfile + rename) so a crash mid-write can
+# never truncate the user's configuration.
 # Arguments:
 #   $1 - 2-letter country code
 # Returns:
-#   0 on success, 1 on invalid code
+#   0 on success, 1 on invalid code or write failure
 # Globals:
 #   COUNTRY_CODE - Updated with new value
 #######################################
@@ -89,7 +98,9 @@ save_country_to_config() {
     local user_config="${config_dir}/config"
 
     # Ensure config directory exists
-    [[ ! -d "${config_dir}" ]] && mkdir -p "${config_dir}"
+    if [[ ! -d "${config_dir}" ]]; then
+        mkdir -p "${config_dir}" 2>/dev/null || return 1
+    fi
 
     # Read existing config into array (pure bash approach)
     local -a config_lines=()
@@ -115,8 +126,15 @@ save_country_to_config() {
         config_lines+=("country_code=${code}")
     fi
 
-    # Write back to file (single write operation)
-    printf '%s\n' "${config_lines[@]}" > "${user_config}"
+    # Atomic write: same-directory tempfile + rename
+    local tmp
+    tmp=$(mktemp "${user_config}.XXXXXX" 2>/dev/null) || return 1
+    if ! printf '%s\n' "${config_lines[@]}" > "${tmp}"; then
+        rm -f "${tmp}"
+        return 1
+    fi
+    chmod 644 "${tmp}" 2>/dev/null
+    mv -f "${tmp}" "${user_config}" || { rm -f "${tmp}"; return 1; }
 
     # Update global variable
     COUNTRY_CODE="${code}"
@@ -130,7 +148,8 @@ save_country_to_config() {
 # Ensure cache directory exists
 #######################################
 _ensure_cache_dir() {
-    [[ ! -d "${HOLIDAYS_CACHE_DIR}" ]] && mkdir -p "${HOLIDAYS_CACHE_DIR}"
+    [[ -d "${HOLIDAYS_CACHE_DIR}" ]] && return 0
+    mkdir -p "${HOLIDAYS_CACHE_DIR}" 2>/dev/null
 }
 
 #######################################
@@ -148,21 +167,33 @@ _get_cache_file() {
 }
 
 #######################################
-# Check if cache exists and is valid (non-empty)
+# Check if cache exists, is non-empty, and is fresh enough to skip a refetch
+# Past years never expire (their holidays are settled); the current and
+# future years expire after HOLIDAYS_CACHE_TTL so official corrections and
+# newly announced dates eventually arrive.
 # Arguments:
 #   $1 - Year
 #   $2 - Country code
 # Returns:
-#   0 if cache exists and valid, 1 otherwise
+#   0 if cache is usable as-is, 1 if a (re)fetch should be attempted
 #######################################
-_cache_exists() {
+_cache_fresh() {
     local year="${1}"
     local country="${2}"
     local cache_file
 
     cache_file="$(_get_cache_file "${year}" "${country}")"
+    [[ -f "${cache_file}" && -s "${cache_file}" ]] || return 1
 
-    [[ -f "${cache_file}" && -s "${cache_file}" ]]
+    # Past years: any non-empty cache is final
+    local now_year
+    printf -v now_year '%(%Y)T' -1
+    ((year < now_year)) && return 0
+
+    local now mtime
+    printf -v now '%(%s)T' -1
+    mtime=$(stat -c %Y "${cache_file}" 2>/dev/null) || return 1
+    ((now - mtime < HOLIDAYS_CACHE_TTL))
 }
 
 #######################################
@@ -177,7 +208,7 @@ fetch_and_cache_holidays() {
     local year="${1}"
     local country="${2}"
 
-    _ensure_cache_dir
+    _ensure_cache_dir || return 1
 
     local cache_file api_url response
     cache_file="$(_get_cache_file "${year}" "${country}")"
@@ -188,11 +219,14 @@ fetch_and_cache_holidays() {
         return 1
     fi
 
-    # Fetch from API with timeout
-    response=$(curl -s --connect-timeout 5 --max-time 10 "${api_url}" 2>/dev/null) || return 1
+    # Fetch from API: fail on HTTP errors, HTTPS only, bounded response size
+    response=$(curl -sS --fail --proto '=https' --tlsv1.2 \
+        --max-filesize 1000000 --connect-timeout 5 --max-time 10 \
+        -H 'Accept: application/json' \
+        "${api_url}" 2>/dev/null) || return 1
 
-    # Check if response is valid
-    if [[ -z "${response}" || "${response}" == "null" || "${response}" == *"NotFound"* ]]; then
+    # The API returns a JSON array; anything else (error page, null) is invalid
+    if [[ -z "${response}" || "${response}" != \[* ]]; then
         return 1
     fi
 
@@ -285,7 +319,8 @@ init_holidays() {
 
 #######################################
 # Load holidays for a specific year
-# Fetches from API if not cached
+# Fetches from API if not cached or if the cache TTL expired; a stale cache
+# is still used as fallback when the fetch fails (e.g. offline).
 # Arguments:
 #   $1 - Year (optional, defaults to CURRENT_YEAR)
 # Globals:
@@ -302,8 +337,9 @@ load_holidays() {
         return 0
     fi
 
-    # Try to load from cache, fetch if not available
-    if ! _cache_exists "${year}" "${COUNTRY_CODE}"; then
+    # Refetch when the cache is missing or expired (failures fall back to
+    # whatever cache still exists)
+    if ! _cache_fresh "${year}" "${COUNTRY_CODE}"; then
         fetch_and_cache_holidays "${year}" "${COUNTRY_CODE}" || true
     fi
 
@@ -312,27 +348,6 @@ load_holidays() {
         HOLIDAYS_LOADED_YEAR="${year}"
         HOLIDAYS_LOADED_COUNTRY="${COUNTRY_CODE}"
     fi
-}
-
-#######################################
-# Validate day/month values
-# Arguments:
-#   $1 - Day (1-31)
-#   $2 - Month (1-12)
-# Returns:
-#   0 if valid, 1 otherwise
-#######################################
-_is_valid_date() {
-    local day="${1}"
-    local month="${2}"
-
-    # Validate month range (1-12)
-    [[ "${month}" =~ ^[0-9]+$ && "${month}" -ge 1 && "${month}" -le 12 ]] || return 1
-
-    # Validate day range (1-31, basic check)
-    [[ "${day}" =~ ^[0-9]+$ && "${day}" -ge 1 && "${day}" -le 31 ]] || return 1
-
-    return 0
 }
 
 #######################################
@@ -361,7 +376,35 @@ is_holiday() {
 }
 
 #######################################
-# Get holiday name for a specific date
+# Get holiday name for a specific date (no forks)
+# Arguments:
+#   $1 - Name of output variable
+#   $2 - Day (1-31)
+#   $3 - Month (1-12, optional, defaults to CURRENT_MONTH)
+#######################################
+_holiday_name_v() {
+    local -n __hn="${1}"
+    __hn=""
+    local __hn_day="${2}"
+    local __hn_month="${3:-${CURRENT_MONTH}}"
+
+    # Early exit conditions
+    if [[ "${HOLIDAYS_ENABLED}" != "true" || ${#HOLIDAYS_DATA[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    # Bounds checking - leave empty on invalid
+    _is_valid_date "${__hn_day}" "${__hn_month}" || return 0
+
+    # Format as MM-DD with leading zeros
+    local __hn_key
+    printf -v __hn_key '%02d-%02d' "${__hn_month}" "${__hn_day}"
+
+    __hn="${HOLIDAYS_DATA[${__hn_key}]:-}"
+}
+
+#######################################
+# Get holiday name for a specific date (printing wrapper, kept for tests)
 # Arguments:
 #   $1 - Day (1-31)
 #   $2 - Month (1-12, optional, defaults to CURRENT_MONTH)
@@ -369,32 +412,19 @@ is_holiday() {
 #   Holiday name or empty string
 #######################################
 get_holiday_name() {
-    local day="${1}"
-    local month="${2:-${CURRENT_MONTH}}"
-
-    # Early exit conditions
-    if [[ "${HOLIDAYS_ENABLED}" != "true" || ${#HOLIDAYS_DATA[@]} -eq 0 ]]; then
-        return
-    fi
-
-    # Bounds checking - return empty on invalid
-    _is_valid_date "${day}" "${month}" || return
-
-    # Format as MM-DD with leading zeros
-    local mm_dd
-    printf -v mm_dd '%02d-%02d' "${month}" "${day}"
-
-    printf '%s' "${HOLIDAYS_DATA[${mm_dd}]:-}"
+    local name
+    _holiday_name_v name "$@"
+    printf '%s' "${name}"
 }
 
 #######################################
-# Get holiday name for currently selected day
-# Outputs:
-#   Holiday name or empty string
+# Footer helper: holiday name for the currently selected day (no forks)
+# Arguments:
+#   $1 - Name of output variable
 # Globals:
 #   SELECTED_DAY - Current selection
 #   CURRENT_MONTH - Current month
 #######################################
-get_selected_holiday() {
-    get_holiday_name "${SELECTED_DAY}" "${CURRENT_MONTH}"
+_selected_holiday_name() {
+    _holiday_name_v "${1}" "${SELECTED_DAY}" "${CURRENT_MONTH}"
 }

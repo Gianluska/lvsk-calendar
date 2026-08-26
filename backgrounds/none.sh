@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # None Background - No background decoration
 # A completely clean canvas

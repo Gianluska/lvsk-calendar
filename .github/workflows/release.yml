@@ -1,0 +1,69 @@
+name: Release
+
+# Pushing a v* tag runs the full pipeline: version consistency check, test
+# suite, a real package build from that tag (the same clone an AUR user
+# performs), and finally the automated AUR publish.
+# workflow_dispatch allows re-publishing (e.g. a pkgrel-only bump) without a
+# new tag.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Syntax check (bash -n)
+        run: |
+          set -e
+          for f in lvsk-calendar lvsk-calendar-launcher src/*.sh src/ui/*.sh backgrounds/*.sh tests/helper.bash *.sh .github/scripts/*.sh; do
+            bash -n "$f"
+          done
+
+      - name: ShellCheck
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck -S warning -e SC1090,SC1091,SC2034,SC2154 \
+            lvsk-calendar lvsk-calendar-launcher src/*.sh src/ui/*.sh backgrounds/*.sh .github/scripts/*.sh
+
+      - name: Run test suite
+        run: |
+          sudo apt-get install -y -qq bats
+          bats tests/
+
+  build:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check version consistency (tag = PKGBUILDs = app)
+        if: github.event_name == 'push'
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: bash .github/scripts/check-version.sh
+
+      - name: Build and verify the package from the released tag
+        run: bash .github/scripts/build-package.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: dist/*.pkg.tar.zst
+          if-no-files-found: error
+
+  publish-aur:
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish to the AUR
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: bash .github/scripts/publish-aur.sh

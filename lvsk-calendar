@@ -7,13 +7,16 @@
 # Architecture:
 #   - Modular design with separated concerns
 #   - Clean component-based UI rendering
-#   - Pure bash techniques where possible
+#   - Pure bash techniques where possible; zero forks per keypress
 #######################################
 
 # Strict mode for better error handling
 # Note: errexit disabled as many bash idioms return non-zero intentionally
 set -o nounset
 set -o pipefail
+
+# Single source of truth for the application version
+declare -r LVSK_VERSION="0.3.10"
 
 #######################################
 # Determine script directory
@@ -45,57 +48,191 @@ declare -g SCRIPT_DIR=""
 declare -g SRC_DIR=""
 _init_paths
 
-# Source all modules in dependency order
-# shellcheck source=src/config.sh
-source "${SRC_DIR}/config.sh"
-# shellcheck source=src/utils.sh
-source "${SRC_DIR}/utils.sh"
-# shellcheck source=src/holidays.sh
-source "${SRC_DIR}/holidays.sh"
-# shellcheck source=src/ui/background.sh
-source "${SRC_DIR}/ui/background.sh"
-# shellcheck source=src/ui/header.sh
-source "${SRC_DIR}/ui/header.sh"
-# shellcheck source=src/ui/calendar.sh
-source "${SRC_DIR}/ui/calendar.sh"
-# shellcheck source=src/ui/footer.sh
-source "${SRC_DIR}/ui/footer.sh"
-# shellcheck source=src/navigation.sh
-source "${SRC_DIR}/navigation.sh"
-# shellcheck source=src/input.sh
-source "${SRC_DIR}/input.sh"
+# Source all modules in dependency order; a missing or broken module is a
+# fatal error (silently continuing would leave half an application running)
+for _module in config utils holidays events ui/background ui/header ui/calendar ui/footer ui/modal navigation input; do
+    if ! source "${SRC_DIR}/${_module}.sh"; then
+        printf 'lvsk-calendar: failed to load module "%s" from %s\n' "${_module}" "${SRC_DIR}" >&2
+        exit 1
+    fi
+done
+unset _module
+
+#######################################
+# Print CLI usage
+#######################################
+_usage() {
+    cat <<EOF
+Usage: lvsk-calendar [OPTION]
+
+A minimalist terminal calendar with holidays and events.
+
+Options:
+  -h, --help       show this help and exit
+  -v, --version    show version and exit
+
+Keys: arrows/hjkl navigate - [ ] month - { } year - t today
+      a/e/d add/edit/delete event - q quit
+
+Config: ~/.config/lvsk-calendar/config
+EOF
+}
+
+#######################################
+# Parse command line arguments
+# Arguments:
+#   $@ - CLI arguments
+#######################################
+_parse_args() {
+    while (($#)); do
+        case "${1}" in
+            -h|--help)
+                _usage
+                exit 0
+                ;;
+            -v|--version)
+                printf 'lvsk-calendar %s\n' "${LVSK_VERSION}"
+                exit 0
+                ;;
+            *)
+                printf 'lvsk-calendar: unknown option: %s\n' "${1}" >&2
+                _usage >&2
+                exit 2
+                ;;
+        esac
+    done
+}
+
+#######################################
+# Ensure bash counts characters, not bytes
+# The UI is drawn with multibyte glyphs and centers text via ${#}; launched
+# from a bare environment (compositor exec, some launchers) LANG may be
+# unset, leaving a C locale where ${#} counts bytes and centering shifts.
+# Probing with a known 2-byte character avoids trusting env var contents.
+#######################################
+_ensure_utf8_ctype() {
+    local probe=$'\xc3\xa9'   # "é" in UTF-8
+    ((${#probe} == 1)) && return 0    # already character-aware
+
+    { export LC_ALL="C.UTF-8"; } 2>/dev/null
+    probe=$'\xc3\xa9'
+    if ((${#probe} != 1)); then
+        # C.UTF-8 unavailable on this system: undo rather than half-apply
+        { unset LC_ALL; } 2>/dev/null
+    fi
+    return 0
+}
+
+#######################################
+# Verify required external commands before doing anything visual
+#######################################
+_check_deps() {
+    local -a missing=()
+    local cmd
+    for cmd in tput stty; do
+        command -v "${cmd}" >/dev/null 2>&1 || missing+=("${cmd}")
+    done
+    if ((${#missing[@]} > 0)); then
+        printf 'lvsk-calendar: missing required commands: %s\n' "${missing[*]}" >&2
+        printf 'Install them with: sudo pacman -S ncurses coreutils\n' >&2
+        exit 1
+    fi
+}
+
+#######################################
+# Verify the terminal is large enough for the fixed layout
+# Globals:
+#   TERM_COLS, TERM_ROWS - Cached terminal dimensions
+#######################################
+_check_terminal_size() {
+    if ((TERM_ROWS < LAYOUT_MIN_ROWS || TERM_COLS < LAYOUT_MIN_COLS)); then
+        printf 'lvsk-calendar: terminal too small (%dx%d); minimum is %dx%d\n' \
+            "${TERM_COLS}" "${TERM_ROWS}" "${LAYOUT_MIN_COLS}" "${LAYOUT_MIN_ROWS}" >&2
+        exit 1
+    fi
+}
 
 #######################################
 # Cleanup handler for terminal restoration
-# Called on EXIT, INT, TERM signals
+# Idempotent: INT/TERM run it and then re-raise, and the EXIT trap that
+# follows must not restore the screen a second time
 #######################################
+declare -g _CLEANED=0
 _cleanup() {
+    ((_CLEANED)) && return 0
+    _CLEANED=1
     cleanup_terminal
 }
 
-# Setup cleanup trap
-trap _cleanup EXIT INT TERM
+#######################################
+# Signal handler: restore the terminal, then die with the correct signal
+# exit status (128+n) instead of returning into the main loop
+# Arguments:
+#   $1 - Signal name (INT or TERM)
+#######################################
+_on_signal() {
+    _cleanup
+    trap - INT TERM
+    kill -s "${1}" "$$"
+}
+
+#######################################
+# Resize handler: refresh cached dimensions and force a full redraw
+#######################################
+_on_winch() {
+    update_term_size
+    FIRST_RENDER=1
+}
+
+# Setup traps: cleanup exactly once on EXIT; signals re-raise after cleanup
+trap _cleanup EXIT
+trap '_on_signal INT' INT
+trap '_on_signal TERM' TERM
+trap _on_winch WINCH
 
 #######################################
 # Main render function
-# Draws all UI components to screen
+# Builds the whole frame in memory and emits it with a single write - no
+# subshells, no external commands, no visible tearing.
 # Globals:
-#   FIRST_RENDER - Tracks if this is initial render
+#   FIRST_RENDER - Tracks if a full clear + background redraw is needed
+#   TODAY_DAY, _RENDER_MONTH_NOW, _RENDER_YEAR_NOW - Refreshed per render
 #######################################
 render() {
+    # Soft guard: the terminal may have been resized below the minimum
+    if ((TERM_ROWS < LAYOUT_MIN_ROWS || TERM_COLS < LAYOUT_MIN_COLS)); then
+        local msg="terminal too small (min ${LAYOUT_MIN_COLS}x${LAYOUT_MIN_ROWS})"
+        local row=$((TERM_ROWS / 2)) col=$(((TERM_COLS - ${#msg}) / 2))
+        ((row < 0)) && row=0
+        ((col < 0)) && col=0
+        printf '%s\033[%d;%dH%b%s%b' "${TC_CLEAR}" $((row + 1)) $((col + 1)) \
+            "${COLORS[BASE_DIM]}" "${msg}" "${COLORS[RESET]}"
+        FIRST_RENDER=1
+        return 0
+    fi
+
+    refresh_month_cache
+
+    # Refresh "today" each render so the marker survives midnight (builtins only)
+    printf -v TODAY_DAY '%(%d)T' -1
+    TODAY_DAY="${TODAY_DAY#0}"
+    printf -v _RENDER_MONTH_NOW '%(%m)T' -1
+    _RENDER_MONTH_NOW="${_RENDER_MONTH_NOW#0}"
+    printf -v _RENDER_YEAR_NOW '%(%Y)T' -1
+
     if ((FIRST_RENDER)); then
-        clear
+        printf '%s' "${TC_CLEAR}"
         draw_background
         FIRST_RENDER=0
     fi
 
-    # Move cursor to home position (fast, no clearing)
-    tput home
+    local frame=$'\033[H'
+    _build_header frame
+    _build_day_headers frame
+    _build_calendar frame
+    _build_footer frame
 
-    draw_header
-    draw_day_headers
-    draw_calendar
-    draw_footer
+    printf '%s' "${frame}"
 }
 
 #######################################
@@ -103,8 +240,23 @@ render() {
 # Initializes all systems and runs main loop
 #######################################
 main() {
-    # Initialize holidays system BEFORE setup_terminal (prompts need normal terminal)
+    _parse_args "$@"
+    _ensure_utf8_ctype
+    _check_deps
+
+    init_term_caps
+    update_term_size
+    _check_terminal_size
+
+    # Load user configuration (creates config dir / copies defaults on first run)
+    config_init
+
+    # Initialize holidays BEFORE setup_terminal (first-run fetch and config
+    # write happen on a normal terminal)
     init_holidays
+
+    # Initialize user events system (loads saved events into memory)
+    init_events
 
     setup_terminal
     setup_hyprland

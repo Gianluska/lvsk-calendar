@@ -2,65 +2,47 @@
 
 #######################################
 # Calendar Component
-# Displays the calendar grid with week numbers and visual indicators
+# Builds the calendar grid with week numbers and visual indicators
 #######################################
 
-# Render-cycle cache (set once per draw_calendar call)
+# Render-cycle cache: today's month/year, refreshed once per render so the
+# "today" marker survives midnight (see render() in the entry point)
 declare -g _RENDER_MONTH_NOW=""
 declare -g _RENDER_YEAR_NOW=""
 
 #######################################
-# Draw the main calendar grid
-# Displays up to 6 weeks with ISO week numbers
-# Positions at lines 10-21 of terminal
+# Build the main calendar grid into the frame buffer
+# Displays up to 6 weeks with ISO week numbers, starting at LAYOUT_GRID_TOP
+# Arguments:
+#   $1 - Name of frame buffer variable
 # Globals:
-#   CURRENT_MONTH - Current month
-#   CURRENT_YEAR - Current year
-#   CALENDAR_GRID_WIDTH - Width of calendar grid
-#   COLORS - Color definitions
-#   CHAR - Character definitions
+#   _MC_DAYS, _MC_FIRST_DOW, _MC_WEEK_NUMS - Cached month metadata
+#   CALENDAR_GRID_WIDTH, TERM_COLS, COLORS, CHAR
 #######################################
-draw_calendar() {
-    # Cache current date for this render cycle (avoid repeated calls)
-    printf -v _RENDER_MONTH_NOW '%(%m)T' -1
-    _RENDER_MONTH_NOW="${_RENDER_MONTH_NOW#0}"
-    printf -v _RENDER_YEAR_NOW '%(%Y)T' -1
+_build_calendar() {
+    local -n __cal="${1}"
 
-    local days
-    days=$(days_in_month "${CURRENT_MONTH}" "${CURRENT_YEAR}")
-
-    local first_day
-    first_day=$(get_first_dow "${CURRENT_MONTH}" "${CURRENT_YEAR}")
-
+    local days="${_MC_DAYS}"
+    local first_day="${_MC_FIRST_DOW}"
     local day_num=1
-    local term_width
-    term_width=$(tput cols)
 
     local grid_width="${CALENDAR_GRID_WIDTH}"
-    local left_pos=$(((term_width - grid_width) / 2))
+    local left_pos=$(((TERM_COLS - grid_width) / 2))
     # Prevent negative position (small terminals)
     ((left_pos < 0)) && left_pos=0
-    local line_num=10  # Starting line for calendar grid
+    local line_num="${LAYOUT_GRID_TOP}"
 
     # Draw up to 6 weeks
-    local week dow should_draw week_day week_num
+    local week dow should_draw week_num
     for ((week = 0; week < 6; week++)); do
         ((day_num > days)) && break
 
-        tput cup "${line_num}" "${left_pos}"
+        _bcup __cal "${line_num}" "${left_pos}"
 
-        # Calculate week number for display
-        if ((week == 0)); then
-            week_day=1
-        else
-            week_day="${day_num}"
-        fi
-
-        week_num=$(get_week_number "${week_day}" "${CURRENT_MONTH}" "${CURRENT_YEAR}")
-
-        # Draw week number column
+        # Week number column (cached per month)
+        week_num="${_MC_WEEK_NUMS[week]:-}"
         if [[ -n "${week_num}" ]]; then
-            printf '%b%2s%b %b%s%b  ' \
+            _bprintf __cal '%b%2s%b %b%s%b  ' \
                 "${COLORS[BASE_DIMMER]}" \
                 "${week_num}" \
                 "${COLORS[RESET]}" \
@@ -68,7 +50,7 @@ draw_calendar() {
                 "${CHAR[v_light]}" \
                 "${COLORS[RESET]}"
         else
-            printf '      '
+            _bprintf __cal '      '
         fi
 
         # Draw 7 days per week
@@ -82,11 +64,11 @@ draw_calendar() {
             fi
 
             if ((should_draw && day_num <= days)); then
-                _render_day "${day_num}" "${dow}"
+                _build_day __cal "${day_num}" "${dow}"
                 day_num=$((day_num + 1))
             else
                 # Empty cell with subtle indicator
-                printf '%b%b  %s%b' \
+                _bprintf __cal '%b%b  %s%b' \
                     "${COLORS[SUBTLE]}" \
                     "${COLORS[DIM]}" \
                     "${CHAR[dot]}" \
@@ -94,115 +76,71 @@ draw_calendar() {
             fi
 
             # Spacing between columns (except last)
-            ((dow < 7)) && printf '  '
+            ((dow < 7)) && _bprintf __cal '  '
         done
 
         # Move to next week line (skip blank line for visual spacing)
-        line_num=$((line_num + 2))
+        line_num=$((line_num + LAYOUT_GRID_STEP))
     done
 }
 
 #######################################
-# Render a single day cell with appropriate styling
+# Build a single day cell with appropriate styling
+# State priority: selected > today > event > holiday > weekend > weekday
 # Arguments:
-#   $1 - Day number (1-31)
-#   $2 - Day of week (1-7, where 1=Monday)
+#   $1 - Name of frame buffer variable
+#   $2 - Day number (1-31)
+#   $3 - Day of week (1-7, where 1=Monday)
 # Globals:
-#   TODAY_DAY - Today's day number
-#   SELECTED_DAY - Currently selected day
-#   CURRENT_MONTH - Current month
-#   CURRENT_YEAR - Current year
-#   _RENDER_MONTH_NOW - Cached current month (set by draw_calendar)
-#   _RENDER_YEAR_NOW - Cached current year (set by draw_calendar)
-#   COLORS - Color definitions
-#   CHAR - Character definitions
+#   TODAY_DAY, SELECTED_DAY, CURRENT_MONTH, CURRENT_YEAR
+#   _RENDER_MONTH_NOW, _RENDER_YEAR_NOW - Cached current date
+#   COLORS, CHAR
 #######################################
-_render_day() {
-    local day_num="${1}"
-    local dow="${2}"
+_build_day() {
+    local -n __day="${1}"
+    local day_num="${2}"
+    local dow="${3}"
 
-    local is_today=0
-    local is_selected=0
-    local is_holiday_day=0
+    local is_today=0 is_selected=0 is_holiday_day=0 is_event_day=0
 
-    # Check if this is today (using cached values from draw_calendar)
-    if ((day_num == TODAY_DAY && CURRENT_MONTH == _RENDER_MONTH_NOW && CURRENT_YEAR == _RENDER_YEAR_NOW)); then
-        is_today=1
-    fi
-
-    # Check if selected
+    # Check if this is today (using cached values refreshed per render)
+    ((day_num == TODAY_DAY && CURRENT_MONTH == _RENDER_MONTH_NOW && CURRENT_YEAR == _RENDER_YEAR_NOW)) \
+        && is_today=1
     ((day_num == SELECTED_DAY)) && is_selected=1
+    is_holiday "${day_num}" "${CURRENT_MONTH}" && is_holiday_day=1
+    is_event "${day_num}" "${CURRENT_MONTH}" && is_event_day=1
 
-    # Check if holiday
-    if is_holiday "${day_num}" "${CURRENT_MONTH}" 2>/dev/null; then
-        is_holiday_day=1
-    fi
-
-    # Determine the marker character based on state
-    # Priority: selected > today > holiday > weekend > weekday
-    local marker=" "
-    local marker_color="${COLORS[RESET]}"
+    # Resolve number color, weight and marker from the state priority
+    local marker=" " marker_color="${COLORS[RESET]}"
+    local num_color="${COLORS[BASE]}" bold=""
 
     if ((is_selected)); then
-        marker="${CHAR[diamond]}"
-        marker_color="${COLORS[ACCENT]}"
+        marker="${CHAR[diamond]}"     marker_color="${COLORS[ACCENT]}"
+        num_color="${COLORS[HIGHLIGHT]}"
+        bold="${COLORS[BOLD]}"
     elif ((is_today)); then
-        marker="${CHAR[circle]}"
-        marker_color="${COLORS[BASE]}"
+        marker="${CHAR[circle]}"      marker_color="${COLORS[BASE]}"
+        num_color="${COLORS[ACCENT_BRIGHT]}"
+        bold="${COLORS[BOLD]}"
+    elif ((is_event_day)); then
+        marker="${CHAR[event]}"       marker_color="${COLORS[ACCENT]}"
+        num_color="${COLORS[ACCENT]}"
+        bold="${COLORS[BOLD]}"
     elif ((is_holiday_day)); then
-        marker="${CHAR[star]}"
-        marker_color="${COLORS[ACCENT_BRIGHT]}"
+        marker="${CHAR[star]}"        marker_color="${COLORS[ACCENT_BRIGHT]}"
+        num_color="${COLORS[ACCENT]}"
+        bold="${COLORS[BOLD]}"
     elif ((dow >= 6)); then
-        marker="${CHAR[dot]}"
-        marker_color="${COLORS[SUBTLE]}"
+        marker="${CHAR[dot]}"         marker_color="${COLORS[SUBTLE]}"
+        num_color="${COLORS[BASE_DIMMER]}"
     fi
 
-    # Render based on state priority: selected > today > holiday > weekend > weekday
-    if ((is_selected)); then
-        # Selected day - bold with diamond marker
-        printf '%b%b%2d%b%b%s%b' \
-            "${COLORS[HIGHLIGHT]}" \
-            "${COLORS[BOLD]}" \
-            "${day_num}" \
-            "${COLORS[RESET]}" \
-            "${marker_color}" \
-            "${marker}" \
-            "${COLORS[RESET]}"
-    elif ((is_today)); then
-        # Today - highlighted with circle marker
-        printf '%b%b%2d%b%b%s%b' \
-            "${COLORS[ACCENT_BRIGHT]}" \
-            "${COLORS[BOLD]}" \
-            "${day_num}" \
-            "${COLORS[RESET]}" \
-            "${marker_color}" \
-            "${marker}" \
-            "${COLORS[RESET]}"
-    elif ((is_holiday_day)); then
-        # Holiday - accent color with bullet marker
-        printf '%b%b%2d%b%b%s%b' \
-            "${COLORS[ACCENT]}" \
-            "${COLORS[BOLD]}" \
-            "${day_num}" \
-            "${COLORS[RESET]}" \
-            "${marker_color}" \
-            "${marker}" \
-            "${COLORS[RESET]}"
-    elif ((dow >= 6)); then
-        # Weekend - dimmed with dot marker
-        printf '%b%2d%b%b%s%b' \
-            "${COLORS[BASE_DIMMER]}" \
-            "${day_num}" \
-            "${COLORS[RESET]}" \
-            "${marker_color}" \
-            "${marker}" \
-            "${COLORS[RESET]}"
-    else
-        # Regular weekday - no marker
-        printf '%b%2d%b%s' \
-            "${COLORS[BASE]}" \
-            "${day_num}" \
-            "${COLORS[RESET]}" \
-            "${marker}"
-    fi
+    _bprintf __day '%b%b%2d%b%b%s%b' \
+        "${num_color}" \
+        "${bold}" \
+        "${day_num}" \
+        "${COLORS[RESET]}" \
+        "${marker_color}" \
+        "${marker}" \
+        "${COLORS[RESET]}"
 }

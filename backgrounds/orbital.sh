@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Orbital Background - Cosmic/orbital design with stars and circles
 # This background style creates a celestial atmosphere
 
 draw_custom_background() {
-    printf "${COLORS[BG]}%s${COLORS[RESET]}" \
+    printf '%b%s%b' "${COLORS[BG]}" \
 "
                                                                           ✧
          ˙                                                            ◦   ·   ◦
@@ -34,5 +34,6 @@ draw_custom_background() {
               ·                           ˙                      ○         ✦
                       ∗          ∘   ·   ∘              ✧      ·
                            ◦                                            ·       ˙
-"
+" \
+"${COLORS[RESET]}"
 }

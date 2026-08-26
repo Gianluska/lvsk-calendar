@@ -10,6 +10,7 @@ color_scheme=monochrome
 # BACKGROUND ILLUSTRATION
 # ============================================================================
 # Available by default: orbital (default), minimal, stars, none
+# (plain names only - the value is a file name inside the backgrounds dir)
 background_style=orbital
 
 # All backgrounds are in: ~/.config/lvsk-calendar/backgrounds/
@@ -43,9 +44,17 @@ holidays_enabled=true
 # country_code=BR
 
 # ============================================================================
+# EVENTS
+# ============================================================================
+# Enable user-created events (true/false). Press 'a' to add, 'e' to edit,
+# 'd' to delete an event on the selected day. Events are saved locally to:
+#   ~/.local/share/lvsk-calendar/events.tsv
+events_enabled=true
+
+# ============================================================================
 # ADVANCED: CUSTOM COLORS
 # ============================================================================
-# Override individual colors using hex (#RRGGBB)
+# Override individual colors using hex (#RRGGBB) or ANSI 256 codes (0-255)
 #
 # color_base=#E0E0E0
 # color_base_dim=#BCBCBC
@@ -54,21 +63,25 @@ holidays_enabled=true
 # color_accent_bright=#FFFFFF
 # color_subtle=#6C6C6C
 # color_highlight=#FFFFFF
-# color_highlight_bg=#303030
+# color_bg=236              # color used by background illustrations
 
 # ============================================================================
 # ADVANCED: CUSTOM CHARACTERS
 # ============================================================================
-# You can override individual characters for borders and indicators
+# You can override individual characters for borders and indicators.
+# Values must be exactly one character so the grid stays aligned.
 # Uncomment and customize as needed:
 #
-# char_h=─
-# char_v=│
-# char_tl=╭
-# char_tr=╮
-# char_bl=╰
-# char_br=╯
-# char_dot=·
-# char_circle=○
-# char_filled_circle=●
-# char_marker=┃
+# char_h=─                  # horizontal border
+# char_v=│                  # vertical border
+# char_tl=╭                 # top-left corner
+# char_tr=╮                 # top-right corner
+# char_bl=╰                 # bottom-left corner
+# char_br=╯                 # bottom-right corner
+# char_v_light=┆            # week number separator
+# char_dot=·                # empty cells / weekend marker
+# char_circle=○             # today marker
+# char_diamond=◆            # selected day marker
+# char_star=★               # holiday marker
+# char_bullet=•             # footer hint separator
+# char_event=▪              # marker for days with events

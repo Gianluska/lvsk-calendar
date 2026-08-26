@@ -1,11 +1,15 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Opens the calendar in a properly configured floating terminal
-# No Hyprland configuration required - windowrules are added dynamically
+# Opens the calendar in a properly configured floating terminal.
+# In Hyprland the float/size/center rules are applied one-shot at spawn time,
+# so nothing accumulates in the compositor's global windowrule list.
+
+set -o nounset
+set -o pipefail
 
 # Determine the calendar script location
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ -f "${SCRIPT_DIR}/lvsk-calendar" ]; then
+if [[ -x "${SCRIPT_DIR}/lvsk-calendar" ]]; then
     # Running from development directory
     CALENDAR_SCRIPT="${SCRIPT_DIR}/lvsk-calendar"
 else
@@ -13,27 +17,34 @@ else
     CALENDAR_SCRIPT="/usr/bin/lvsk-calendar"
 fi
 
-# Add temporary windowrules for Hyprland (only if running in Hyprland)
-if [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
-    # Hyprland 0.53+ syntax
-    hyprctl keyword windowrule "float on, match:title ^lvsk-calendar$" >/dev/null 2>&1
-    hyprctl keyword windowrule "size 600 500, match:title ^lvsk-calendar$" >/dev/null 2>&1
-    hyprctl keyword windowrule "center on, match:title ^lvsk-calendar$" >/dev/null 2>&1
-fi
-
-# Detect terminal emulator and launch with proper title
-# LAUNCHED_BY_LAUNCHER tells the calendar to close the terminal window on exit
-if command -v ghostty &> /dev/null; then
-    ghostty --title="lvsk-calendar" -e env LAUNCHED_BY_LAUNCHER=1 "${CALENDAR_SCRIPT}"
-elif command -v kitty &> /dev/null; then
-    kitty --title="lvsk-calendar" -e env LAUNCHED_BY_LAUNCHER=1 "${CALENDAR_SCRIPT}"
-elif command -v alacritty &> /dev/null; then
-    alacritty --title="lvsk-calendar" -e env LAUNCHED_BY_LAUNCHER=1 "${CALENDAR_SCRIPT}"
-elif command -v foot &> /dev/null; then
-    foot --title="lvsk-calendar" env LAUNCHED_BY_LAUNCHER=1 "${CALENDAR_SCRIPT}"
-elif command -v wezterm &> /dev/null; then
-    wezterm start --class="lvsk-calendar" -- env LAUNCHED_BY_LAUNCHER=1 "${CALENDAR_SCRIPT}"
-else
-    echo "Error: No supported terminal emulator found (ghostty, kitty, alacritty, foot, wezterm)"
+if [[ ! -x "${CALENDAR_SCRIPT}" ]]; then
+    printf 'lvsk-calendar-launcher: calendar not found at %s\n' "${CALENDAR_SCRIPT}" >&2
     exit 1
 fi
+
+# Detect terminal emulator and build the launch command with proper title.
+# LAUNCHED_BY_LAUNCHER tells the calendar to close the terminal window on exit.
+declare -a term_cmd=()
+if command -v ghostty &>/dev/null; then
+    term_cmd=(ghostty --title=lvsk-calendar -e env LAUNCHED_BY_LAUNCHER=1 "${CALENDAR_SCRIPT}")
+elif command -v kitty &>/dev/null; then
+    term_cmd=(kitty --title=lvsk-calendar -e env LAUNCHED_BY_LAUNCHER=1 "${CALENDAR_SCRIPT}")
+elif command -v alacritty &>/dev/null; then
+    term_cmd=(alacritty --title=lvsk-calendar -e env LAUNCHED_BY_LAUNCHER=1 "${CALENDAR_SCRIPT}")
+elif command -v foot &>/dev/null; then
+    term_cmd=(foot --title=lvsk-calendar env LAUNCHED_BY_LAUNCHER=1 "${CALENDAR_SCRIPT}")
+elif command -v wezterm &>/dev/null; then
+    term_cmd=(wezterm start --class lvsk-calendar -- env LAUNCHED_BY_LAUNCHER=1 "${CALENDAR_SCRIPT}")
+else
+    printf 'lvsk-calendar-launcher: no supported terminal emulator found (ghostty, kitty, alacritty, foot, wezterm)\n' >&2
+    exit 1
+fi
+
+if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] && command -v hyprctl &>/dev/null; then
+    # One-shot window rules: float/size/center apply only to this spawn,
+    # regardless of terminal, title or class - and leave no global state behind
+    printf -v cmd_str '%q ' "${term_cmd[@]}"
+    exec hyprctl dispatch exec "[float; size 600 500; center] ${cmd_str}" >/dev/null
+fi
+
+exec "${term_cmd[@]}"

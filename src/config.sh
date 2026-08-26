@@ -29,7 +29,6 @@ apply_color_scheme() {
             COLORS[ACCENT_BRIGHT]='\033[38;5;255m'
             COLORS[SUBTLE]='\033[38;5;242m'
             COLORS[HIGHLIGHT]='\033[38;5;255m'
-            COLORS[HIGHLIGHT_BG]='\033[48;5;236m'
             COLORS[BG]='\033[38;5;236m'
             ;;
         pastel)
@@ -41,7 +40,6 @@ apply_color_scheme() {
             COLORS[ACCENT_BRIGHT]='\033[38;5;229m'
             COLORS[SUBTLE]='\033[38;5;145m'
             COLORS[HIGHLIGHT]='\033[38;5;219m'
-            COLORS[HIGHLIGHT_BG]='\033[48;5;235m'
             COLORS[BG]='\033[38;5;236m'
             ;;
         nord)
@@ -53,7 +51,6 @@ apply_color_scheme() {
             COLORS[ACCENT_BRIGHT]='\033[38;5;116m'
             COLORS[SUBTLE]='\033[38;5;242m'
             COLORS[HIGHLIGHT]='\033[38;5;110m'
-            COLORS[HIGHLIGHT_BG]='\033[48;5;236m'
             COLORS[BG]='\033[38;5;236m'
             ;;
         dracula)
@@ -65,7 +62,6 @@ apply_color_scheme() {
             COLORS[ACCENT_BRIGHT]='\033[38;5;212m'
             COLORS[SUBTLE]='\033[38;5;61m'
             COLORS[HIGHLIGHT]='\033[38;5;228m'
-            COLORS[HIGHLIGHT_BG]='\033[48;5;236m'
             COLORS[BG]='\033[38;5;236m'
             ;;
         gruvbox)
@@ -77,7 +73,6 @@ apply_color_scheme() {
             COLORS[ACCENT_BRIGHT]='\033[38;5;229m'
             COLORS[SUBTLE]='\033[38;5;239m'
             COLORS[HIGHLIGHT]='\033[38;5;142m'
-            COLORS[HIGHLIGHT_BG]='\033[48;5;237m'
             COLORS[BG]='\033[38;5;237m'
             ;;
         *)
@@ -99,9 +94,11 @@ declare -gA COLORS=(
     [DIM]='\033[2m'
     [ITALIC]='\033[3m'
     [UNDERLINE]='\033[4m'
+    [INVERSE]='\033[7m'
 )
 
 # Box-drawing and indicator characters
+# Every entry here is rendered somewhere and configurable via char_* keys
 declare -gA CHAR=(
     # Borders
     [h]='─'
@@ -110,18 +107,14 @@ declare -gA CHAR=(
     [tr]='╮'
     [bl]='╰'
     [br]='╯'
-    [h_heavy]='━'
     [v_light]='┆'
     # Indicators
     [dot]='·'
     [circle]='○'
-    [filled_circle]='●'
-    [bar]='▏'
-    [marker]='┃'
     [diamond]='◆'
-    [square]='▪'
     [bullet]='•'
     [star]='★'
+    [event]='▪'
 )
 
 # Global state variables - initialized with current date
@@ -139,10 +132,22 @@ printf -v TODAY_DAY '%(%d)T' -1
 TODAY_DAY="${TODAY_DAY#0}"  # Remove leading zero
 SELECTED_DAY="${TODAY_DAY}"
 
-# Layout constants (can be overridden by user config)
+# Layout constants (frame widths can be overridden by user config)
 declare -g HEADER_FRAME_WIDTH=40
 declare -g FOOTER_FRAME_WIDTH=52
 declare -g CALENDAR_GRID_WIDTH=38
+
+# Vertical layout (0-based terminal rows) and minimum usable terminal size
+declare -g LAYOUT_HEADER_TOP=3      # header frame occupies rows 3-5
+declare -g LAYOUT_DAYHDR_ROW=7      # weekday names
+declare -g LAYOUT_DAYSEP_ROW=8      # separator under weekday names
+declare -g LAYOUT_GRID_TOP=10       # first calendar week row
+declare -g LAYOUT_GRID_STEP=2       # spacing between week rows
+declare -g LAYOUT_INFO_ROW=22       # footer info line (events/holiday)
+declare -g LAYOUT_SEP_ROW=23        # footer separator
+declare -g LAYOUT_CONTROLS_ROW=24   # footer key hints
+declare -g LAYOUT_MIN_ROWS=25
+declare -g LAYOUT_MIN_COLS=56
 
 # Behavior settings (can be overridden by user config)
 declare -g SKIP_SPLASH="false"
@@ -150,6 +155,9 @@ declare -g SKIP_SPLASH="false"
 # Holidays settings (can be overridden by user config)
 declare -g HOLIDAYS_ENABLED="true"
 declare -g COUNTRY_CODE=""
+
+# Events settings (can be overridden by user config)
+declare -g EVENTS_ENABLED="true"
 
 # ============================================================================
 # VALIDATION HELPERS
@@ -209,68 +217,71 @@ _is_positive_int() {
 # ============================================================================
 
 #######################################
-# Convert color value to ANSI escape sequence
+# Convert color value to ANSI escape sequence (no forks)
 # Supports: hex (#RRGGBB or RRGGBB), ANSI 256 codes (0-255)
 # Arguments:
-#   $1 - Color value (hex or ANSI code)
-#   $2 - Type: 'fg' (foreground) or 'bg' (background)
-# Outputs:
-#   ANSI escape sequence string (empty on invalid input)
+#   $1 - Name of output variable
+#   $2 - Color value (hex or ANSI code)
+#   $3 - Type: 'fg' (foreground) or 'bg' (background)
+# Returns:
+#   0 on success, 1 on invalid input (output variable left empty)
 #######################################
 parse_color() {
-    local value="${1}"
-    local type="${2:-fg}"
+    local -n __pc="${1}"
+    local __pc_value="${2}"
+    local __pc_type="${3:-fg}"
+    __pc=""
 
     # Empty value check
-    [[ -z "${value}" ]] && return 1
+    [[ -z "${__pc_value}" ]] && return 1
 
     # Remove # prefix if present (pure bash - no external commands)
-    value="${value#\#}"
+    __pc_value="${__pc_value#\#}"
 
-    # Check if it's a valid hex color (6 characters, valid hex)
-    if _is_valid_hex "${value}"; then
+    if _is_valid_hex "${__pc_value}"; then
         # Convert hex to RGB using arithmetic expansion
-        local r=$((16#${value:0:2}))
-        local g=$((16#${value:2:2}))
-        local b=$((16#${value:4:2}))
+        local __pc_r=$((16#${__pc_value:0:2}))
+        local __pc_g=$((16#${__pc_value:2:2}))
+        local __pc_b=$((16#${__pc_value:4:2}))
 
-        if [[ "${type}" == "bg" ]]; then
-            printf '\033[48;2;%d;%d;%dm' "${r}" "${g}" "${b}"
+        if [[ "${__pc_type}" == "bg" ]]; then
+            printf -v __pc '\033[48;2;%d;%d;%dm' "${__pc_r}" "${__pc_g}" "${__pc_b}"
         else
-            printf '\033[38;2;%d;%d;%dm' "${r}" "${g}" "${b}"
+            printf -v __pc '\033[38;2;%d;%d;%dm' "${__pc_r}" "${__pc_g}" "${__pc_b}"
         fi
-    elif _is_valid_ansi256 "${value}"; then
-        # Valid ANSI 256 code
-        if [[ "${type}" == "bg" ]]; then
-            printf '\033[48;5;%sm' "${value}"
+    elif _is_valid_ansi256 "${__pc_value}"; then
+        if [[ "${__pc_type}" == "bg" ]]; then
+            printf -v __pc '\033[48;5;%sm' "${__pc_value}"
         else
-            printf '\033[38;5;%sm' "${value}"
+            printf -v __pc '\033[38;5;%sm' "${__pc_value}"
         fi
     else
-        # Invalid color value - return empty (caller should handle)
         return 1
     fi
 }
 
 #######################################
-# Trim whitespace from string (pure bash)
+# Trim whitespace from string (pure bash, no forks)
 # Arguments:
-#   $1 - String to trim
-# Outputs:
-#   Trimmed string
+#   $1 - Name of output variable
+#   $2 - String to trim
 #######################################
 _trim() {
-    local str="${1}"
+    # Local is namespaced: with dynamic scoping, a plain local here would
+    # shadow a caller's output variable of the same name
+    local -n __tr="${1}"
+    local __tr_s="${2}"
     # Remove leading whitespace
-    str="${str#"${str%%[![:space:]]*}"}"
+    __tr_s="${__tr_s#"${__tr_s%%[![:space:]]*}"}"
     # Remove trailing whitespace
-    str="${str%"${str##*[![:space:]]}"}"
-    printf '%s' "${str}"
+    __tr="${__tr_s%"${__tr_s##*[![:space:]]}"}"
 }
 
 #######################################
-# Parse a config file (key=value format)
-# Validates input and ignores invalid values
+# Parse a config file (key=value format) in a single pass
+# Reads all keys first (last occurrence wins), applies the color scheme, then
+# applies every other key so explicit colors override the scheme. Invalid
+# values are validated and silently ignored, exactly as before.
 # Arguments:
 #   $1 - Path to config file
 # Globals:
@@ -281,7 +292,8 @@ parse_config_file() {
 
     [[ ! -f "${config_file}" ]] && return 1
 
-    local key value line parsed_color
+    local -A raw=()
+    local line key value
 
     while IFS= read -r line || [[ -n "${line}" ]]; do
         # Skip empty lines and comments
@@ -290,20 +302,26 @@ parse_config_file() {
         # Skip lines without =
         [[ "${line}" != *"="* ]] && continue
 
-        # Split on first =
-        key="${line%%=*}"
-        value="${line#*=}"
+        # Split on first =, trim whitespace (pure bash)
+        _trim key "${line%%=*}"
+        _trim value "${line#*=}"
 
-        # Trim whitespace (pure bash)
-        key="$(_trim "${key}")"
-        value="$(_trim "${value}")"
+        # Skip empty keys/values; later duplicates override earlier ones
+        [[ -z "${key}" || -z "${value}" ]] && continue
+        raw["${key}"]="${value}"
+    done < "${config_file}"
 
-        # Skip empty values
-        [[ -z "${value}" ]] && continue
+    # Apply the scheme first so explicit color_* overrides win below
+    if [[ -n "${raw[color_scheme]:-}" ]]; then
+        COLOR_SCHEME="${raw[color_scheme]}"
+        apply_color_scheme "${COLOR_SCHEME}"
+    fi
 
-        # Apply configuration based on key (with validation)
+    local parsed_color
+    for key in "${!raw[@]}"; do
+        value="${raw[${key}]}"
         case "${key}" in
-            color_scheme)        COLOR_SCHEME="${value}" ;;
+            color_scheme)        ;;  # applied above
             background_style)    BACKGROUND_STYLE="${value}" ;;
 
             # Integer settings (validate before applying)
@@ -324,6 +342,9 @@ parse_config_file() {
             holidays_enabled)
                 _is_valid_bool "${value}" && HOLIDAYS_ENABLED="${value,,}"
                 ;;
+            events_enabled)
+                _is_valid_bool "${value}" && EVENTS_ENABLED="${value,,}"
+                ;;
 
             # Country code (uppercase 2-letter)
             country_code)
@@ -333,43 +354,49 @@ parse_config_file() {
             # Custom colors (hex #RRGGBB or ANSI 256 codes)
             # Only apply if parse_color succeeds
             color_base)
-                parsed_color="$(parse_color "${value}" fg)" && COLORS[BASE]="${parsed_color}"
+                parse_color parsed_color "${value}" fg && COLORS[BASE]="${parsed_color}"
                 ;;
             color_base_dim)
-                parsed_color="$(parse_color "${value}" fg)" && COLORS[BASE_DIM]="${parsed_color}"
+                parse_color parsed_color "${value}" fg && COLORS[BASE_DIM]="${parsed_color}"
                 ;;
             color_base_dimmer)
-                parsed_color="$(parse_color "${value}" fg)" && COLORS[BASE_DIMMER]="${parsed_color}"
+                parse_color parsed_color "${value}" fg && COLORS[BASE_DIMMER]="${parsed_color}"
                 ;;
             color_accent)
-                parsed_color="$(parse_color "${value}" fg)" && COLORS[ACCENT]="${parsed_color}"
+                parse_color parsed_color "${value}" fg && COLORS[ACCENT]="${parsed_color}"
                 ;;
             color_accent_bright)
-                parsed_color="$(parse_color "${value}" fg)" && COLORS[ACCENT_BRIGHT]="${parsed_color}"
+                parse_color parsed_color "${value}" fg && COLORS[ACCENT_BRIGHT]="${parsed_color}"
                 ;;
             color_subtle)
-                parsed_color="$(parse_color "${value}" fg)" && COLORS[SUBTLE]="${parsed_color}"
+                parse_color parsed_color "${value}" fg && COLORS[SUBTLE]="${parsed_color}"
                 ;;
             color_highlight)
-                parsed_color="$(parse_color "${value}" fg)" && COLORS[HIGHLIGHT]="${parsed_color}"
+                parse_color parsed_color "${value}" fg && COLORS[HIGHLIGHT]="${parsed_color}"
                 ;;
-            color_highlight_bg)
-                parsed_color="$(parse_color "${value}" bg)" && COLORS[HIGHLIGHT_BG]="${parsed_color}"
+            color_bg)
+                parse_color parsed_color "${value}" fg && COLORS[BG]="${parsed_color}"
                 ;;
 
-            # Custom characters (single character validation)
-            char_h)              [[ ${#value} -le 3 ]] && CHAR[h]="${value}" ;;
-            char_v)              [[ ${#value} -le 3 ]] && CHAR[v]="${value}" ;;
-            char_tl)             [[ ${#value} -le 3 ]] && CHAR[tl]="${value}" ;;
-            char_tr)             [[ ${#value} -le 3 ]] && CHAR[tr]="${value}" ;;
-            char_bl)             [[ ${#value} -le 3 ]] && CHAR[bl]="${value}" ;;
-            char_br)             [[ ${#value} -le 3 ]] && CHAR[br]="${value}" ;;
-            char_dot)            [[ ${#value} -le 3 ]] && CHAR[dot]="${value}" ;;
-            char_circle)         [[ ${#value} -le 3 ]] && CHAR[circle]="${value}" ;;
-            char_filled_circle)  [[ ${#value} -le 3 ]] && CHAR[filled_circle]="${value}" ;;
-            char_marker)         [[ ${#value} -le 3 ]] && CHAR[marker]="${value}" ;;
+            # Custom characters (exactly one character, so the grid stays aligned)
+            char_h)        ((${#value} == 1)) && CHAR[h]="${value}" ;;
+            char_v)        ((${#value} == 1)) && CHAR[v]="${value}" ;;
+            char_tl)       ((${#value} == 1)) && CHAR[tl]="${value}" ;;
+            char_tr)       ((${#value} == 1)) && CHAR[tr]="${value}" ;;
+            char_bl)       ((${#value} == 1)) && CHAR[bl]="${value}" ;;
+            char_br)       ((${#value} == 1)) && CHAR[br]="${value}" ;;
+            char_v_light)  ((${#value} == 1)) && CHAR[v_light]="${value}" ;;
+            char_dot)      ((${#value} == 1)) && CHAR[dot]="${value}" ;;
+            char_circle)   ((${#value} == 1)) && CHAR[circle]="${value}" ;;
+            char_diamond)  ((${#value} == 1)) && CHAR[diamond]="${value}" ;;
+            char_bullet)   ((${#value} == 1)) && CHAR[bullet]="${value}" ;;
+            char_star)     ((${#value} == 1)) && CHAR[star]="${value}" ;;
+            char_event)    ((${#value} == 1)) && CHAR[event]="${value}" ;;
         esac
-    done < "${config_file}"
+    done
+
+    # A trailing rejected value must not leak a falsy status to the caller
+    return 0
 }
 
 #######################################
@@ -383,9 +410,10 @@ load_user_config() {
     local user_config="${config_dir}/config"
     local backgrounds_dir="${config_dir}/backgrounds"
 
-    # Create directories if they don't exist
-    [[ ! -d "${config_dir}" ]] && mkdir -p "${config_dir}"
-    [[ ! -d "${backgrounds_dir}" ]] && mkdir -p "${backgrounds_dir}"
+    # Create directories if they don't exist; without them we just run with defaults
+    if ! mkdir -p "${config_dir}" "${backgrounds_dir}" 2>/dev/null; then
+        return 0
+    fi
 
     # If user config doesn't exist, create it from example
     if [[ ! -f "${user_config}" ]]; then
@@ -423,13 +451,8 @@ load_user_config() {
         done
     fi
 
-    # Parse user configuration if it exists
+    # Parse user configuration if it exists (single pass)
     if [[ -f "${user_config}" ]]; then
-        # First pass: get color scheme
-        parse_config_file "${user_config}"
-        # Apply color scheme
-        apply_color_scheme "${COLOR_SCHEME:-monochrome}"
-        # Second pass: override with custom colors
         parse_config_file "${user_config}"
     fi
 }
@@ -444,8 +467,12 @@ declare -g COLOR_SCHEME="${COLOR_SCHEME:-monochrome}"
 # Set default background style
 declare -g BACKGROUND_STYLE="${BACKGROUND_STYLE:-orbital}"
 
-# Apply default color scheme
-apply_color_scheme "${COLOR_SCHEME}"
-
-# Load user configuration (will override defaults)
-load_user_config
+#######################################
+# Initialize configuration (called explicitly by the entry point)
+# Kept out of source time so the module can be sourced by tests without
+# side effects (directory creation, file copies).
+#######################################
+config_init() {
+    apply_color_scheme "${COLOR_SCHEME}"
+    load_user_config
+}
