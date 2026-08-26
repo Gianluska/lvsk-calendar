@@ -16,7 +16,7 @@ set -o nounset
 set -o pipefail
 
 # Single source of truth for the application version
-declare -r LVSK_VERSION="0.3.10"
+declare -r LVSK_VERSION="0.3.11"
 
 #######################################
 # Determine script directory
