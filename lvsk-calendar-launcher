@@ -40,11 +40,30 @@ else
     exit 1
 fi
 
+# Quote a string as a Lua literal for hl.dsp.exec_cmd(). Only backslash and
+# double quote need escaping: the spawn line is built by printf %q and never
+# contains a newline.
+lua_quote() {
+    local value="${1//\\/\\\\}"
+    printf '"%s"' "${value//\"/\\\"}"
+}
+
 if [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] && command -v hyprctl &>/dev/null; then
     # One-shot window rules: float/size/center apply only to this spawn,
     # regardless of terminal, title or class - and leave no global state behind
     printf -v cmd_str '%q ' "${term_cmd[@]}"
-    exec hyprctl dispatch exec "[float; size 600 500; center] ${cmd_str}" >/dev/null
+    spawn="[float; size 600 500; center] ${cmd_str}"
+
+    # Hyprland 0.56 (Omarchy Quattro) evaluates `hyprctl dispatch` arguments as
+    # Lua, so the bracketed rule string has to travel inside exec_cmd or the
+    # dispatch dies on a parse error. Older Hyprland has no Lua API and still
+    # takes the bare dispatcher form, so keep it as the fallback.
+    if reply=$(hyprctl dispatch "hl.dsp.exec_cmd($(lua_quote "${spawn}"))" 2>&1) &&
+        [[ -z ${reply} || ${reply} == "ok" ]]; then
+        exit 0
+    fi
+
+    exec hyprctl dispatch exec "${spawn}" >/dev/null
 fi
 
 exec "${term_cmd[@]}"

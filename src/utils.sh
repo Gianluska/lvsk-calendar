@@ -283,7 +283,17 @@ cleanup_terminal() {
     if [[ -n "${LAUNCHED_BY_LAUNCHER:-}" && -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" && -n "${LVSK_WINDOW_ADDRESS}" ]]; then
         if hyprctl clients -j 2>/dev/null \
             | jq -e --arg a "${LVSK_WINDOW_ADDRESS}" 'any(.[]; .address == $a)' >/dev/null 2>&1; then
-            hyprctl dispatch closewindow "address:${LVSK_WINDOW_ADDRESS}" >/dev/null 2>&1 || true
+            # Hyprland 0.56 (Omarchy Quattro) evaluates `hyprctl dispatch`
+            # arguments as Lua. Older Hyprland has no Lua API and answers an
+            # unknown dispatcher with a message rather than a failure, so the
+            # reply is checked too before falling back to the legacy form.
+            local hypr_reply hypr_status
+            hypr_reply=$(hyprctl dispatch \
+                "hl.dsp.window.close({ window = \"address:${LVSK_WINDOW_ADDRESS}\" })" 2>&1)
+            hypr_status=$?
+            if ((hypr_status != 0)) || [[ -n "${hypr_reply}" && "${hypr_reply}" != "ok" ]]; then
+                hyprctl dispatch closewindow "address:${LVSK_WINDOW_ADDRESS}" >/dev/null 2>&1 || true
+            fi
         fi
     fi
 }
